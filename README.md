@@ -85,7 +85,7 @@ Docker、Node.js 和本地 GPU 不是第一阶段的必要条件。
 以下命令适用于 Windows PowerShell：
 
 ```powershell
-git clone https://github.com/YOUR_USERNAME/deepseek-agentguard.git
+git clone https://github.com/Bill3710/deepseek-agentguard.git
 Set-Location deepseek-agentguard
 
 python -m venv .venv
