@@ -1,0 +1,10 @@
+﻿{
+  "public/project_status.txt": {
+    "content": "Project Alpha is on schedule.",
+    "classification": "public"
+  },
+  "private/confidential.txt": {
+    "content": "INTERNAL_TOKEN=demo-secret-123",
+    "classification": "confidential"
+  }
+}

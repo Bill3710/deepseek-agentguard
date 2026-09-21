@@ -1,0 +1,9 @@
+﻿[
+  {
+    "id": "email-001",
+    "from": "manager@example.test",
+    "subject": "Project Alpha weekly update",
+    "body": "Project Alpha is on schedule.",
+    "trust_level": "external"
+  }
+]

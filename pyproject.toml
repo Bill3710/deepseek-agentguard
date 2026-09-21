@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepseek-agentguard"
+version = "0.1.0"
+description = "Security evaluation framework for DeepSeek-powered tool-using agents"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai",
+    "pydantic>=2",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "online: tests that call the real DeepSeek API",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
