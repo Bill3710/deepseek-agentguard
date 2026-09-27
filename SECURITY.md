@@ -1,75 +1,75 @@
-# Security Policy
+# 安全政策
 
-## Supported versions
+## 支持范围
 
-DeepSeek AgentGuard is currently an early-stage research project. Security fixes are applied only to the latest revision of the `main` branch. No released version is considered production-ready.
+DeepSeek AgentGuard 目前仍处于早期研究阶段。安全修复仅应用于 `main` 分支的最新版本，当前没有任何发布版本可视为适用于生产环境。
 
-## Reporting a vulnerability
+## 漏洞报告方式
 
-Please do not publish API keys, personal data, unredacted logs, or working exploits against real systems in a public issue.
+请勿在公开议题中发布 API 密钥、个人数据、未经脱敏的日志，或能够攻击真实系统的可用漏洞利用代码。
 
-When GitHub private vulnerability reporting is available for this repository, use a private security advisory. Otherwise, contact the repository owner through their GitHub profile without including sensitive details in the first message.
+如果本仓库启用了 GitHub 私密漏洞报告功能，请使用私密安全公告报告漏洞。否则，请通过仓库所有者的 GitHub 个人主页与其联系，且不要在第一条消息中包含敏感细节。
 
-A useful report should include:
+一份有效的漏洞报告应包括：
 
-- A concise description of the issue and its impact.
-- The affected commit or version.
-- Reproduction steps using synthetic data.
-- The expected and observed behavior.
-- Suggested mitigation, if known.
+- 问题及其影响的简要说明。
+- 受影响的提交或版本。
+- 使用合成数据的复现步骤。
+- 预期行为与实际观察到的行为。
+- 已知的缓解建议（如有）。
 
-Reports that concern DeepSeek itself, another model provider, or a third-party dependency should be submitted to the corresponding vendor or maintainer.
+如果报告涉及 DeepSeek 本身、其他模型提供商或第三方依赖，请将问题提交给对应厂商或维护者。
 
-## Research safety boundaries
+## 研究安全边界
 
-This repository is intended for defensive research and authorized testing only.
+本仓库仅用于防御性研究和获得授权的测试。
 
-Allowed activities include:
+允许的活动包括：
 
-- Running attacks against the local simulated tools and synthetic datasets in this repository.
-- Adding prompt-injection cases that use reserved domains such as `example.test`.
-- Measuring model behavior, policy decisions and false positives in the provided test environment.
-- Improving authorization, validation, logging and evaluation controls.
+- 针对本仓库的本地模拟工具和合成数据集运行攻击测试。
+- 添加仅使用 `example.test` 等保留域名的提示注入案例。
+- 在所提供的测试环境中测量模型行为、策略决策和误报。
+- 改进授权、校验、日志记录和评测控制。
 
-Out-of-scope activities include:
+不在项目范围内的活动包括：
 
-- Connecting the project to a real mailbox, payment system, cloud account or production database without explicit authorization and a separate security review.
-- Collecting or publishing real credentials, personal data or confidential documents.
-- Sending unsolicited messages or attempting to access third-party systems.
-- Publishing instructions whose primary purpose is unauthorized exploitation.
+- 未经明确授权和单独安全审查，将项目连接到真实邮箱、支付系统、云账户或生产数据库。
+- 收集或公开真实凭据、个人数据或机密文档。
+- 发送未经请求的消息，或尝试访问第三方系统。
+- 发布主要用于未经授权利用的操作说明。
 
-## API keys and secrets
+## API 密钥与秘密信息
 
-- Store local credentials only in `.env` or operating-system environment variables.
-- Never place a real key in `.env.example`, source code, test fixtures, documentation, screenshots, logs or evaluation results.
-- Never commit `.env`, even to a private repository.
-- Use a dedicated development key with limited balance whenever possible.
-- Revoke and replace a key immediately if it appears in Git history, terminal output, an issue or a shared artifact.
-- Redact authorization headers, tool payloads and model traces before publishing them.
+- 本地凭据只能存放在 `.env` 或操作系统环境变量中。
+- 不得将真实密钥写入 `.env.example`、源代码、测试夹具、文档、截图、日志或评测结果。
+- 即使仓库是私有仓库，也不得提交 `.env`。
+- 应尽量使用余额受限的专用开发密钥。
+- 如果密钥出现在 Git 历史、终端输出、议题或共享材料中，应立即吊销并更换。
+- 发布前应对授权请求头、工具载荷和模型轨迹进行脱敏。
 
-Before each push, verify that `.env` is ignored and untracked:
+每次推送前，应确认 `.env` 已被忽略且未被 Git 跟踪：
 
 ```powershell
 git check-ignore -v .env
 git ls-files .env
 ```
 
-The second command must produce no output.
+第二条命令必须没有任何输出。
 
-## Synthetic data requirements
+## 合成数据要求
 
-Committed datasets must be fictional and safe to publish. Use reserved domains such as `example.com`, `example.net` or `example.test`. Synthetic secrets must be clearly recognizable as test values and must not grant access to any system.
+提交到仓库的数据集必须是虚构的，并且可以安全公开。请使用 `example.com`、`example.net` 或 `example.test` 等保留域名。合成秘密必须能够明显识别为测试值，并且不能用于访问任何系统。
 
-## Safe tool execution
+## 安全的工具执行
 
-The reference implementation must keep external side effects disabled by default. Tools that simulate sending, deleting, writing memory or accessing confidential resources must operate only on local test state unless an explicitly reviewed integration is added later.
+参考实现必须默认禁用真实外部副作用。用于模拟发送、删除、写入记忆或访问机密资源的工具，只能操作本地测试状态，除非以后新增的真实集成已经通过明确的安全审查。
 
-Model-generated tool calls are untrusted input. Tool names must be selected from an explicit allowlist, arguments must be validated against a strict schema, and high-risk actions must pass an independent policy decision before execution.
+模型生成的工具调用属于不可信输入。工具名称必须来自明确的允许列表，参数必须通过严格的数据模型校验，高风险操作在执行前必须经过独立策略判断。
 
-## Disclosure expectations
+## 漏洞披露要求
 
-The maintainer should acknowledge a valid report, assess its impact, prepare a fix and credit the reporter when requested. Public disclosure should wait until a mitigation is available and sensitive information has been removed.
+维护者应确认有效报告、评估影响、准备修复，并在报告者提出要求时给予署名。公开披露应等到缓解措施已经可用且敏感信息已经移除之后再进行。
 
-## Disclaimer
+## 免责声明
 
-This software is provided for research and educational purposes. It is not a security boundary by itself and must not be treated as production authorization infrastructure.
+本软件仅用于研究和教学。它本身不构成安全边界，也不得被视为适用于生产环境的授权基础设施。

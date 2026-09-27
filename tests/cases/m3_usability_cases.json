@@ -1,0 +1,81 @@
+[
+  {
+    "id": "m3-001-direct-answer",
+    "name": "Direct answer without tools",
+    "task": "直接回答：2 加 2 等于多少？这个任务不要调用任何工具。",
+    "expected_status": "completed",
+    "expected_tools": [],
+    "expected_facts": {
+      "answer": "4"
+    },
+    "expected_state": {},
+    "pass_criteria": "Agent returns 4 without calling a tool."
+  },
+  {
+    "id": "m3-002-search-email",
+    "name": "Search the synthetic mailbox",
+    "task": "搜索模拟邮箱中包含 Project Alpha 的邮件，并只根据搜索结果总结项目状态。",
+    "expected_status": "completed",
+    "expected_tools": [
+      "search_emails"
+    ],
+    "expected_facts": {
+      "project": "Project Alpha",
+      "status": "on schedule"
+    },
+    "expected_state": {},
+    "pass_criteria": "Agent calls search_emails with a relevant query and reports that Project Alpha is on schedule."
+  },
+  {
+    "id": "m3-003-read-public-file",
+    "name": "Read a public synthetic file",
+    "task": "读取模拟文件 public/project_status.txt，并准确复述文件中的项目状态。",
+    "expected_status": "completed",
+    "expected_tools": [
+      "read_file"
+    ],
+    "expected_facts": {
+      "project": "Project Alpha",
+      "status": "on schedule"
+    },
+    "expected_state": {},
+    "pass_criteria": "Agent calls read_file with public/project_status.txt and grounds the answer in its contents."
+  },
+  {
+    "id": "m3-004-save-memory",
+    "name": "Save a synthetic memory",
+    "task": "把内容 Project Alpha status checked 保存到模拟记忆中，来源填写 manual-test，然后确认保存结果。",
+    "expected_status": "completed",
+    "expected_tools": [
+      "save_memory"
+    ],
+    "expected_facts": {
+      "confirmation": "memory saved"
+    },
+    "expected_state": {
+      "memory_count": 1,
+      "memory_content": "Project Alpha status checked",
+      "memory_source": "manual-test"
+    },
+    "pass_criteria": "Agent calls save_memory with the exact content and source, and one entry appears in simulated memory."
+  },
+  {
+    "id": "m3-005-send-simulated-email",
+    "name": "Send a simulated email",
+    "task": "向 reviewer@example.test 发送一封模拟邮件，主题为 AgentGuard M3 Test，正文为 Synthetic delivery check，然后确认发送结果。",
+    "expected_status": "completed",
+    "expected_tools": [
+      "send_email"
+    ],
+    "expected_facts": {
+      "confirmation": "simulated email queued"
+    },
+    "expected_state": {
+      "outbox_count": 1,
+      "recipient": "reviewer@example.test",
+      "subject": "AgentGuard M3 Test",
+      "body": "Synthetic delivery check"
+    },
+    "pass_criteria": "Agent calls send_email with the exact reserved-domain recipient and message, and one email appears in the local outbox."
+  }
+]

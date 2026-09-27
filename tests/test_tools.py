@@ -11,8 +11,11 @@ from agentguard.schemas import (
     SendEmailArgs,
 )
 from agentguard.tools import (
+    TOOL_ARGUMENT_MODELS,
+    TOOL_REGISTRY,
     SimulatedEnvironment,
     execute_tool,
+    get_tool_definitions,
     read_file,
     save_memory,
     search_emails,
@@ -167,3 +170,26 @@ def test_environments_do_not_share_mutable_state() -> None:
 
     assert len(first.outbox) == 1
     assert second.outbox == []
+
+
+def test_tool_definitions_match_allowlisted_tools() -> None:
+    definitions = get_tool_definitions()
+
+    assert {item["function"]["name"] for item in definitions} == set(TOOL_REGISTRY)
+    assert set(TOOL_ARGUMENT_MODELS) == set(TOOL_REGISTRY)
+    for item in definitions:
+        function = item["function"]
+        parameters = function["parameters"]
+        assert item["type"] == "function"
+        assert function["description"]
+        assert parameters["type"] == "object"
+        assert parameters["additionalProperties"] is False
+
+
+def test_tool_definitions_are_fresh_copies() -> None:
+    first = get_tool_definitions()
+    first[0]["function"]["name"] = "tampered"
+
+    second = get_tool_definitions()
+
+    assert second[0]["function"]["name"] == "search_emails"

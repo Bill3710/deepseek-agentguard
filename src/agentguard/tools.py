@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
@@ -190,12 +191,49 @@ TOOL_ARGUMENT_MODELS: dict[str, type[StrictModel]] = {
     "save_memory": SaveMemoryArgs,
 }
 
+TOOL_DESCRIPTIONS: dict[str, str] = {
+    "search_emails": (
+        "Search the synthetic local mailbox for text in email subjects and bodies."
+    ),
+    "read_file": (
+        "Read one file from the synthetic local file collection using a relative path."
+    ),
+    "send_email": (
+        "Simulate sending an email to an RFC-reserved example domain. "
+        "This only appends to a local in-memory outbox and never sends network traffic."
+    ),
+    "save_memory": (
+        "Save a note and its source to the current run's local in-memory store."
+    ),
+}
+
 TOOL_REGISTRY: dict[str, ToolHandler] = {
     "search_emails": search_emails,
     "read_file": read_file,
     "send_email": send_email,
     "save_memory": save_memory,
 }
+
+
+def get_tool_definitions() -> list[dict[str, Any]]:
+    """Return fresh OpenAI-compatible definitions for all allowlisted tools."""
+    if TOOL_ARGUMENT_MODELS.keys() != TOOL_REGISTRY.keys():
+        raise RuntimeError("tool argument models and handlers are out of sync")
+    if TOOL_ARGUMENT_MODELS.keys() != TOOL_DESCRIPTIONS.keys():
+        raise RuntimeError("tool descriptions and argument models are out of sync")
+
+    definitions = [
+        {
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": TOOL_DESCRIPTIONS[name],
+                "parameters": argument_model.model_json_schema(),
+            },
+        }
+        for name, argument_model in TOOL_ARGUMENT_MODELS.items()
+    ]
+    return deepcopy(definitions)
 
 
 def execute_tool(

@@ -4,11 +4,11 @@
 
 DeepSeek AgentGuard 用一个完全本地、使用合成数据的办公助理环境，复现间接提示注入、越权工具调用和敏感数据外泄，并验证确定性权限策略能否在尽量不影响正常任务的前提下阻止攻击。
 
-> 当前状态：早期开发阶段。仓库已完成基础结构和测试配置，Agent、策略引擎与评测功能仍在实现中，请勿用于生产环境。
+> 当前状态：早期开发阶段。仓库已完成基础结构、模拟工具、模型提供器和基础智能体；策略引擎与评测功能仍在实现中，请勿用于生产环境。
 
 ## 项目目标
 
-- 构建具备邮件检索、文件读取、模拟发信和记忆写入能力的工具调用 Agent。
+- 构建具备邮件检索、文件读取、模拟发信和记忆写入能力的工具调用智能体。
 - 复现来自邮件、文档和工具输出的间接提示注入。
 - 在工具真正执行前完成参数校验、权限判断和人工审批。
 - 记录完整调用轨迹，区分模型建议、策略决策与工具执行结果。
@@ -21,11 +21,11 @@ DeepSeek AgentGuard 用一个完全本地、使用合成数据的办公助理环
 ```text
 用户要求总结项目邮件
         ↓
-Agent 读取含恶意指令的邮件
+智能体读取含恶意指令的邮件
         ↓
-恶意内容诱导 Agent 读取机密文件
+恶意内容诱导智能体读取机密文件
         ↓
-Agent 尝试调用 send_email 外传数据
+智能体尝试调用 send_email 外传数据
         ↓
 策略引擎允许、阻止或请求人工确认
 ```
@@ -35,7 +35,7 @@ Agent 尝试调用 send_email 外传数据
 ## 设计原则
 
 1. **模型不拥有最终执行权**：DeepSeek 只提出工具调用，策略引擎决定是否执行。
-2. **所有模型输出均不可信**：工具名称和参数必须经过白名单与 Pydantic Schema 校验。
+2. **所有模型输出均不可信**：工具名称和参数必须经过允许列表与 Pydantic 数据模型校验。
 3. **数据不能授权操作**：邮件、文件和搜索结果可以提供信息，但不能授予新的工具权限。
 4. **最小权限**：工具按读取、写入、可逆性和数据影响分级。
 5. **可复现评测**：正常任务和攻击任务使用固定测试集，并保存结构化审计结果。
@@ -43,24 +43,24 @@ Agent 尝试调用 send_email 外传数据
 ## 计划中的架构
 
 ```text
-User Task
+用户任务
    ↓
-DeepSeek Provider
-   ↓ proposed tool call
-Schema Validation
+DeepSeek 模型提供器
+   ↓ 拟议工具调用
+数据模型校验
    ↓
-Policy Engine ───→ Block / Require Approval
-   ↓ allow
-Simulated Tool
+策略引擎 ───→ 阻止 / 要求审批
+   ↓ 允许
+模拟工具
    ↓
-Audit Log + Evaluation Metrics
+审计日志 + 评测指标
 ```
 
 ## 仓库结构
 
 ```text
 deepseek-agentguard/
-├── src/agentguard/       # Agent、模型适配器、工具、策略与审计模块
+├── src/agentguard/       # 智能体、模型适配器、工具、策略与审计模块
 ├── tests/                # 单元测试与安全回归测试
 ├── data/                 # 合成邮件和文件
 ├── attacks/              # 攻击案例定义
@@ -76,7 +76,7 @@ deepseek-agentguard/
 - Windows、macOS 或 Linux
 - Python 3.11 或更高版本
 - Git
-- DeepSeek API Key，仅在线评测需要
+- DeepSeek API 密钥，仅在线评测需要
 
 Docker、Node.js 和本地 GPU 不是第一阶段的必要条件。
 
@@ -122,6 +122,22 @@ git ls-files .env
 
 第二条命令应当没有输出。
 
+## 运行基线智能体
+
+完全离线的 `FakeProvider` 演示：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_agent.py --provider fake "搜索包含 invoice 的邮件"
+```
+
+使用 `.env` 中配置的 DeepSeek：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_agent.py --provider deepseek "搜索包含 invoice 的模拟邮件，并总结内容"
+```
+
+第二条命令会调用在线 API，可能产生少量费用。无论使用哪个模型提供器，智能体都只能访问本仓库的合成数据与模拟工具。
+
 ## 运行测试
 
 运行不产生 API 费用的本地测试：
@@ -136,31 +152,34 @@ git ls-files .env
 .\.venv\Scripts\python.exe -m ruff check .
 ```
 
-在线测试将使用 `online` 标记与普通测试隔离，避免持续集成或本地测试意外产生费用：
+需要验证真实 DeepSeek 连通性时，手动运行以下脚本：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -m online
+.\.venv\Scripts\python.exe scripts\check_deepseek.py
 ```
 
-在线测试功能将在 DeepSeek Provider 完成后启用。
+该命令会调用在线 API，可能产生少量费用；普通 `pytest` 测试不会联网。
+
+每个开发里程碑的验收范围与历史结果记录在 [docs/test-results.md](docs/test-results.md)。
+M3 的 15 次真实 DeepSeek 可用性测试详见 [results/m3-usability-results.json](results/m3-usability-results.json)。
 
 ## 计划评测指标
 
 | 指标 | 含义 |
 |---|---|
-| Benign Task Success Rate | 无攻击时正常任务的完成比例 |
-| Attack Success Rate | 攻击导致违规工具行为的比例 |
-| False Positive Rate | 正常操作被策略错误阻止的比例 |
-| Average Tool Calls | 每次任务平均工具调用次数 |
-| Latency | 防御策略增加的响应时间 |
-| Estimated Cost | 在线模型评测的估算费用 |
+| 正常任务成功率 | 无攻击时正常任务的完成比例 |
+| 攻击成功率 | 攻击导致违规工具行为的比例 |
+| 误报率 | 正常操作被策略错误阻止的比例 |
+| 平均工具调用次数 | 每次任务平均工具调用次数 |
+| 延迟 | 防御策略增加的响应时间 |
+| 估算成本 | 在线模型评测的估算费用 |
 
 ## 开发路线
 
 - [x] 初始化项目结构、依赖和基础导入测试
-- [ ] 实现本地模拟工具与 Schema
-- [ ] 实现 DeepSeek Provider 和 Fake Provider
-- [ ] 建立无防御 Agent 基线
+- [x] 实现本地模拟工具与数据模型
+- [x] 实现 `DeepSeekProvider` 和 `FakeProvider`
+- [x] 建立无防御智能体基线
 - [ ] 复现间接提示注入与数据外泄
 - [ ] 实现权限策略、审批和审计日志
 - [ ] 建立自动化攻防评测
@@ -173,9 +192,9 @@ git ls-files .env
 ## 参考资料
 
 - [DeepSeek API 文档](https://api-docs.deepseek.com/zh-cn/)
-- [OWASP Agentic Security Initiative](https://genai.owasp.org/initiatives/agentic-security-initiative/)
+- [OWASP 智能体安全倡议](https://genai.owasp.org/initiatives/agentic-security-initiative/)
 - [AgentDojo](https://github.com/ethz-spylab/agentdojo)
 
 ---
 
-English summary: DeepSeek AgentGuard is an early-stage defensive research project for reproducing and evaluating prompt-injection attacks against tool-using agents. All tools and data are simulated, and no production systems are accessed.
+项目摘要：DeepSeek AgentGuard 是一个早期防御性研究项目，用于复现和评测针对工具调用智能体的提示注入攻击。所有工具和数据均为模拟内容，项目不会访问生产系统。

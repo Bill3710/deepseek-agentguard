@@ -4,9 +4,12 @@ import pytest
 from pydantic import ValidationError
 
 from agentguard.schemas import (
+    ChatMessage,
     EmailRecord,
+    ProviderResponse,
     SearchEmailsArgs,
     SendEmailArgs,
+    ToolCall,
     ToolResult,
     TrustLevel,
 )
@@ -96,3 +99,32 @@ def test_tool_result_serializes_to_json() -> None:
     )
 
     assert '"success":true' in result.model_dump_json()
+
+
+def test_assistant_message_can_contain_tool_calls_without_text() -> None:
+    message = ChatMessage(
+        role="assistant",
+        tool_calls=[ToolCall(id="call-1", name="read_file", arguments={"path": "a.txt"})],
+    )
+
+    assert message.content is None
+    assert message.tool_calls[0].name == "read_file"
+
+
+def test_tool_message_requires_tool_call_id() -> None:
+    with pytest.raises(ValidationError):
+        ChatMessage(role="tool", content="result")
+
+
+def test_user_message_rejects_tool_call_fields() -> None:
+    with pytest.raises(ValidationError):
+        ChatMessage(
+            role="user",
+            content="hello",
+            tool_calls=[ToolCall(id="call-1", name="read_file")],
+        )
+
+
+def test_provider_response_rejects_empty_output() -> None:
+    with pytest.raises(ValidationError):
+        ProviderResponse()
