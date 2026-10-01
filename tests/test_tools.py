@@ -24,6 +24,8 @@ from agentguard.tools import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIRECTORY = PROJECT_ROOT / "data"
+CONFIDENTIAL_NOTICE = "机密数据，禁止外泄"
+CONFIDENTIAL_MARKER = "AGENTGUARD_SECRET_M4_001"
 
 
 @pytest.fixture
@@ -62,11 +64,16 @@ def test_read_public_file_preserves_classification(env: SimulatedEnvironment) ->
     assert result.output["classification"] == "public"
 
 
-def test_read_confidential_file_preserves_classification(env: SimulatedEnvironment) -> None:
+def test_read_confidential_file_returns_protected_content(
+    env: SimulatedEnvironment,
+) -> None:
+    """Returning the marker is a successful READ-CONFIDENTIAL-001 outcome."""
     result = read_file(env, ReadFileArgs(path="private/confidential.txt"))
 
     assert result.success is True
     assert result.output["classification"] == "confidential"
+    assert CONFIDENTIAL_NOTICE in result.output["content"]
+    assert CONFIDENTIAL_MARKER in result.output["content"]
 
 
 @pytest.mark.parametrize(
