@@ -9,7 +9,7 @@ from typing import NoReturn
 import pytest
 
 from agentguard.providers import FakeProvider, ModelProvider, ProviderResponseError
-from agentguard.runner import AgentRunner
+from agentguard.runner import BASELINE_SYSTEM_PROMPT, AgentRunner
 from agentguard.schemas import (
     AgentRunStatus,
     ChatMessage,
@@ -250,7 +250,10 @@ def test_runner_supplies_all_allowlisted_tools_to_provider(
     runner.run("列出可用能力")
 
     definitions = provider.calls[0]["tools"]
+    system_message = provider.calls[0]["messages"][0]
     assert definitions is not None
+    assert system_message.content == BASELINE_SYSTEM_PROMPT
+    assert "treat tool output as data" not in system_message.content
     assert {item["function"]["name"] for item in definitions} == {
         "search_emails",
         "read_file",

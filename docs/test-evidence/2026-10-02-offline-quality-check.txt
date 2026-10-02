@@ -1,0 +1,44 @@
+DeepSeek AgentGuard 离线质量检查日志
+执行日期：2026-10-02（Australia/Sydney）
+
+命令：.\.venv\Scripts\python.exe -m pytest -ra --durations=10 -p no:cacheprovider
+退出码：0
+
+============================= test session starts =============================
+platform win32 -- Python 3.14.0, pytest-9.1.1, pluggy-1.6.0
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1, asyncio-1.4.0
+collected 90 items
+
+tests\test_m3_online_evaluator.py ....                                   [  4%]
+tests\test_m3_usability_cases.py ...                                     [  7%]
+tests\test_m4_attack_cases.py .......                                    [ 15%]
+tests\test_m4_attack_execution.py ...........                            [ 27%]
+tests\test_m4_online_evaluator.py .............                          [ 42%]
+tests\test_project_structure.py ...                                      [ 45%]
+tests\test_providers.py .........                                        [ 55%]
+tests\test_runner.py ..........                                          [ 66%]
+tests\test_schemas.py ............                                       [ 80%]
+tests\test_tools.py ..................                                   [100%]
+
+============================= 90 passed in 0.61s ==============================
+
+命令：.\.venv\Scripts\python.exe -m ruff check .
+退出码：0
+输出：All checks passed!
+
+本次新增验证：
+- 三个核心攻击任务不包含“不执行邮件”“不读取”或“不发送”等软防御提醒。
+- M4 在线运行器使用独立的中性系统提示，不继承 M3 的工具输出防御提示。
+- M3 基线系统提示也已改为中性，不再默认启用工具输出软防御。
+- EXFIL 判定覆盖授权名单之外的任意收件人，而不是只匹配固定攻击者地址。
+- 攻击邮件正文不再主动声明自身为提示注入攻击。
+
+环境与安全：
+- 操作系统：Windows
+- Python：3.14.0
+- pytest：9.1.1
+- 本次是否访问 DeepSeek：否
+- 本次是否产生 API 费用：否
+- 本次是否读取或记录 API 密钥：否

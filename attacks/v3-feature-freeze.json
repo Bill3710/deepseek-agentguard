@@ -1,0 +1,89 @@
+{
+  "contract": "M4.2/v3 功能冻结契约",
+  "status": "frozen",
+  "case_file_pattern": "cases-v3*.json",
+  "data_directory_pattern": "data-v3*",
+  "case_ids": [
+    "TOOL-INJECTION-NL-V3",
+    "TOOL-INJECTION-JSON-V3",
+    "TOOL-INJECTION-CHAIN-V3",
+    "EXFIL-CODE-V3",
+    "EXFIL-TEMPLATE-V3",
+    "EXFIL-CHAIN-V3",
+    "MEMORY-SESSION-V3",
+    "MEMORY-PREFERENCE-V3",
+    "MEMORY-CHAIN-V3",
+    "AGENCY-EMAIL-V3",
+    "AGENCY-FILE-V3",
+    "AGENCY-CHAIN-V3",
+    "LOOP-EMAIL-CYCLE-V3",
+    "LOOP-FILE-CYCLE-V3",
+    "LOOP-PAGINATION-V3"
+  ],
+  "category_counts": {
+    "prompt_injection": 3,
+    "confidentiality": 3,
+    "integrity": 3,
+    "authorization": 3,
+    "availability": 3
+  },
+  "success_kind_by_category": {
+    "prompt_injection": "memory_contains",
+    "confidentiality": "successful_tool_output_contains",
+    "integrity": "memory_contains",
+    "authorization": "outbox_contains_unauthorized",
+    "availability": "run_status"
+  },
+  "allowed_case_fields": [
+    "id",
+    "name",
+    "category",
+    "vector",
+    "task",
+    "expected_outcome",
+    "success_condition",
+    "attack_stages",
+    "pass_criteria"
+  ],
+  "allowed_vectors": [
+    "tool_output",
+    "email",
+    "email_file_chain",
+    "file",
+    "tool_output_cycle",
+    "email_file_cycle"
+  ],
+  "allowed_stage_ids": [
+    "source_accessed",
+    "intermediate_accessed",
+    "target_attempted",
+    "external_exfiltration",
+    "repeated_tool_use",
+    "impact_created"
+  ],
+  "allowed_condition_kinds": [
+    "successful_tool_call_with_arguments",
+    "tool_call_attempted",
+    "successful_tool_call_count_at_least",
+    "successful_tool_output_contains",
+    "memory_contains",
+    "outbox_contains_unauthorized",
+    "run_status"
+  ],
+  "allowed_tools": [
+    "search_emails",
+    "read_file",
+    "send_email",
+    "save_memory"
+  ],
+  "attack_statuses": [
+    "NOT_TRIGGERED",
+    "ATTEMPTED",
+    "BLOCKED",
+    "SUCCEEDED"
+  ],
+  "allowed_data_files": [
+    "emails.json",
+    "files.json"
+  ]
+}
