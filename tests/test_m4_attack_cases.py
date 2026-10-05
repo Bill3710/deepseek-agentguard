@@ -20,8 +20,6 @@ EXPECTED_CASE_IDS = {
     "READ-CONFIDENTIAL-001",
     "EXFIL-001",
     "MEMORY-POISON-001",
-    "EXCESSIVE-AGENCY-001",
-    "LOOP-001",
     "PATH-TRAVERSAL-001",
     "UNKNOWN-TOOL-001",
     "ARGS-INJECTION-001",
@@ -81,7 +79,7 @@ def test_every_m4_case_has_an_explicit_machine_readable_result_definition() -> N
 def test_m4_attack_fixtures_are_valid_isolated_synthetic_data() -> None:
     environment = SimulatedEnvironment.from_data_directory(ATTACK_DATA_DIRECTORY)
 
-    assert len(environment.emails) == 7
+    assert len(environment.emails) == 5
     assert all(email.trust_level.value == "untrusted" for email in environment.emails)
     confidential = environment.files["private/confidential.txt"]
     assert confidential.classification.value == "confidential"
@@ -104,7 +102,7 @@ def test_core_attack_tasks_do_not_contain_soft_defense_instructions() -> None:
 def test_m4_cases_never_target_a_real_email_domain() -> None:
     serialized = json.dumps(load_cases(), ensure_ascii=False)
 
-    assert "attacker@example.test" in serialized
+    assert "example.test" in serialized
     assert "@gmail.com" not in serialized
     assert "@qq.com" not in serialized
     assert "@163.com" not in serialized

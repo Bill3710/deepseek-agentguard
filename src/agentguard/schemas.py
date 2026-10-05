@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -30,6 +31,7 @@ class DataClassification(str, Enum):
 
     PUBLIC = "public"
     CONFIDENTIAL = "confidential"
+    SECRET = "secret"
 
 
 class ToolRisk(str, Enum):
@@ -38,6 +40,37 @@ class ToolRisk(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class MemoryCandidateStatus(str, Enum):
+    """Review state for memory proposed from untrusted content."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    PROMOTED = "promoted"
+    REJECTED = "rejected"
+
+
+class ApprovalStatus(str, Enum):
+    """Lifecycle state of an exact high-risk tool approval."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CONSUMED = "consumed"
+    EXPIRED = "expired"
+
+
+class AuditEventType(str, Enum):
+    """Security-relevant events emitted by the protected runner."""
+
+    RUN_STARTED = "run_started"
+    TOOL_PROPOSED = "tool_proposed"
+    POLICY_DECIDED = "policy_decided"
+    TOOL_FINISHED = "tool_finished"
+    APPROVAL_CREATED = "approval_created"
+    APPROVAL_UPDATED = "approval_updated"
+    RUN_FINISHED = "run_finished"
 
 
 class AgentRunStatus(str, Enum):
@@ -164,6 +197,12 @@ class SaveMemoryArgs(StrictModel):
 
     content: str = Field(min_length=1, max_length=50_000)
     source: str = Field(min_length=1, max_length=500)
+    namespace: str = Field(
+        default="general",
+        min_length=1,
+        max_length=100,
+        pattern=r"^[a-z0-9][a-z0-9._-]*$",
+    )
 
 
 class SimulatedEmail(StrictModel):
@@ -181,6 +220,53 @@ class MemoryEntry(StrictModel):
     id: str = Field(min_length=1, max_length=100)
     content: str = Field(min_length=1, max_length=50_000)
     source: str = Field(min_length=1, max_length=500)
+    namespace: str = Field(min_length=1, max_length=100)
+
+
+class MemoryCandidate(StrictModel):
+    """Untrusted memory proposal isolated from active retrieval."""
+
+    id: str = Field(min_length=1, max_length=100)
+    content: str = Field(min_length=1, max_length=50_000)
+    claimed_source: str = Field(min_length=1, max_length=500)
+    provenance_source_ids: list[str] = Field(min_length=1)
+    namespace: str = Field(min_length=1, max_length=100)
+    trust_level: TrustLevel
+    status: MemoryCandidateStatus
+
+
+class ApprovalRequest(StrictModel):
+    """Immutable tool parameters awaiting an explicit one-time approval."""
+
+    id: str = Field(min_length=1, max_length=100)
+    tool_call: ToolCall
+    argument_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    reason_code: str = Field(min_length=1, max_length=200)
+    source_ids: list[str] = Field(default_factory=list)
+    created_at: datetime
+    expires_at: datetime
+    status: ApprovalStatus = ApprovalStatus.PENDING
+
+    @model_validator(mode="after")
+    def validate_expiry(self) -> ApprovalRequest:
+        """Require a strictly positive approval lifetime."""
+        if self.expires_at <= self.created_at:
+            raise ValueError("approval expiry must be after creation")
+        return self
+
+
+class AuditEvent(StrictModel):
+    """One redacted event in an append-only security audit trail."""
+
+    sequence: int = Field(ge=1)
+    timestamp: datetime
+    trace_id: str = Field(min_length=1, max_length=100)
+    event_type: AuditEventType
+    tool_call_id: str | None = Field(default=None, min_length=1, max_length=200)
+    tool_name: str | None = Field(default=None, min_length=1, max_length=100)
+    policy_action: str | None = Field(default=None, min_length=1, max_length=100)
+    reason_code: str | None = Field(default=None, min_length=1, max_length=200)
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class ToolResult(StrictModel):

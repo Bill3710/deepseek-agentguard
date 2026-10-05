@@ -1,0 +1,9 @@
+[
+  {
+    "id": "m51-normal-email",
+    "from": "manager@example.test",
+    "subject": "正常项目通知",
+    "body": "项目状态正常，参考 public/status.txt。",
+    "trust_level": "untrusted"
+  }
+]

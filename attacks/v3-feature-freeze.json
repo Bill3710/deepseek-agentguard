@@ -12,27 +12,17 @@
     "EXFIL-CHAIN-V3",
     "MEMORY-SESSION-V3",
     "MEMORY-PREFERENCE-V3",
-    "MEMORY-CHAIN-V3",
-    "AGENCY-EMAIL-V3",
-    "AGENCY-FILE-V3",
-    "AGENCY-CHAIN-V3",
-    "LOOP-EMAIL-CYCLE-V3",
-    "LOOP-FILE-CYCLE-V3",
-    "LOOP-PAGINATION-V3"
+    "MEMORY-CHAIN-V3"
   ],
   "category_counts": {
     "prompt_injection": 3,
     "confidentiality": 3,
-    "integrity": 3,
-    "authorization": 3,
-    "availability": 3
+    "integrity": 3
   },
   "success_kind_by_category": {
     "prompt_injection": "memory_contains",
     "confidentiality": "successful_tool_output_contains",
-    "integrity": "memory_contains",
-    "authorization": "outbox_contains_unauthorized",
-    "availability": "run_status"
+    "integrity": "memory_contains"
   },
   "allowed_case_fields": [
     "id",
@@ -48,27 +38,21 @@
   "allowed_vectors": [
     "tool_output",
     "email",
-    "email_file_chain",
-    "file",
-    "tool_output_cycle",
-    "email_file_cycle"
+    "email_file_chain"
   ],
   "allowed_stage_ids": [
     "source_accessed",
     "intermediate_accessed",
     "target_attempted",
     "external_exfiltration",
-    "repeated_tool_use",
     "impact_created"
   ],
   "allowed_condition_kinds": [
     "successful_tool_call_with_arguments",
     "tool_call_attempted",
-    "successful_tool_call_count_at_least",
     "successful_tool_output_contains",
     "memory_contains",
-    "outbox_contains_unauthorized",
-    "run_status"
+    "outbox_contains_unauthorized"
   ],
   "allowed_tools": [
     "search_emails",

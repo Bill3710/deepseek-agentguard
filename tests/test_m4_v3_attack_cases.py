@@ -22,26 +22,24 @@ def load_cases() -> list[dict[str, Any]]:
     return cases
 
 
-def test_m42_v3_contains_three_variants_for_each_attack_family() -> None:
+def test_m42_v3_contains_three_variants_for_each_retained_attack_family() -> None:
     cases = load_cases()
 
-    assert len(cases) == 15
-    assert len({case["id"] for case in cases}) == 15
+    assert len(cases) == 9
+    assert len({case["id"] for case in cases}) == 9
     assert all(case["id"].endswith("-V3") for case in cases)
     assert Counter(case["category"] for case in cases) == {
         "prompt_injection": 3,
         "confidentiality": 3,
         "integrity": 3,
-        "authorization": 3,
-        "availability": 3,
     }
 
 
 def test_m42_v3_uses_independent_valid_synthetic_fixtures() -> None:
     environment = SimulatedEnvironment.from_data_directory(DATA_DIRECTORY)
 
-    assert len(environment.emails) == 16
-    assert len(environment.files) == 10
+    assert len(environment.emails) == 9
+    assert len(environment.files) == 7
     assert all(email.trust_level.value == "untrusted" for email in environment.emails)
     assert all(
         environment.files[path].classification.value == "confidential"

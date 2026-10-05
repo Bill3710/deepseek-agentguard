@@ -1,0 +1,51 @@
+DeepSeek AgentGuard M6 自动化攻防评测验证记录
+日期：2026-10-05（Australia/Sydney）
+
+实现范围：
+- 统一攻击、正常任务与安全控制的结果模型。
+- 区分攻击成功、攻击尝试、硬阻止、等待审批、未触发、误报及运行错误。
+- 明确排除提供器、模型、最大步数和评估器错误的成功率分母。
+- 计算攻击成功率、策略介入率、未触发率、正常成功率、误报率、审批和性能指标。
+- 使用 SHA-256 内容指纹验证相同输入产生相同汇总。
+- 生成公开安全的 JSON 报告和中文 Markdown 摘要。
+
+输入来源：
+- M4 V3.3 三个提示注入案例各 10 次，无防御。
+- M5 同三个提示注入案例各 10 次，有防御。
+- M5 九个良性案例各 5 次。
+- M5.1 四个确定性安全控制案例。
+
+首份报告结果：
+- 规范化记录：109
+- 无防御提示注入攻击成功：17/30（56.67%）
+- M5 提示注入攻击成功：0/30（0%）
+- M5 正常任务功能成功：45/45（100%）
+- M5 正常任务误报：0/45（0%）
+- M5.1 安全控制通过：4/4
+- 内容指纹：2a3ea9fcd5b4406d820cce97e070f9fd05a44f1420f1266a456ebcb37b08b281
+
+执行命令与结果：
+
+1. M6 专项测试
+   .\.venv\Scripts\python.exe -m pytest -q tests -k m6
+   结果：13 passed
+
+2. 生成统一报告
+   .\.venv\Scripts\python.exe scripts\run_m6_evaluation.py
+   结果：109 条记录成功规范化；JSON 与 Markdown 报告生成成功
+   网络访问：否
+
+3. 完整离线测试
+   .\.venv\Scripts\python.exe -m pytest -q
+   结果：179 passed in 0.80s
+
+4. 代码规范
+   .\.venv\Scripts\python.exe -m ruff check .
+   结果：All checks passed!
+
+5. Python 编译与依赖一致性
+   .\.venv\Scripts\python.exe -m compileall -q src tests scripts
+   .\.venv\Scripts\python.exe -m pip check
+   结果：编译通过；No broken requirements found.
+
+结论：M6 的离线统一评测、失败分类、指标计算、可复现性校验和报告生成均通过。报告中的在线行为数据来自既有历史结果，本次 M6 执行没有调用 DeepSeek API。

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -14,6 +16,8 @@ from pydantic import ValidationError
 from agentguard.schemas import (
     EmailRecord,
     FileRecord,
+    MemoryCandidate,
+    MemoryCandidateStatus,
     MemoryEntry,
     ReadFileArgs,
     SaveMemoryArgs,
@@ -22,10 +26,12 @@ from agentguard.schemas import (
     SimulatedEmail,
     StrictModel,
     ToolResult,
+    TrustLevel,
 )
 
 MAX_SEARCH_RESULTS = 20
 ALLOWED_TEST_DOMAINS = frozenset({"example.com", "example.net", "example.test"})
+MEMORY_NAMESPACE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,99}$")
 
 
 @dataclass(slots=True)
@@ -36,6 +42,7 @@ class SimulatedEnvironment:
     files: dict[str, FileRecord]
     outbox: list[SimulatedEmail] = field(default_factory=list)
     memory: list[MemoryEntry] = field(default_factory=list)
+    memory_candidates: list[MemoryCandidate] = field(default_factory=list)
 
     @classmethod
     def from_data_directory(cls, data_directory: Path) -> SimulatedEnvironment:
@@ -55,7 +62,7 @@ class SimulatedEnvironment:
 
         emails = [EmailRecord.model_validate(item) for item in raw_emails]
         files = {
-            _normalize_simulated_path(path): FileRecord.model_validate(record)
+            normalize_simulated_path(path): FileRecord.model_validate(record)
             for path, record in raw_files.items()
         }
         return cls(emails=emails, files=files)
@@ -65,7 +72,7 @@ def _failed(tool_name: str, error: str) -> ToolResult:
     return ToolResult(success=False, tool_name=tool_name, error=error)
 
 
-def _normalize_simulated_path(raw_path: str) -> str:
+def normalize_simulated_path(raw_path: str) -> str:
     """Normalize a synthetic path and reject absolute or traversing paths."""
     windows_path = PureWindowsPath(raw_path)
     normalized_text = raw_path.replace("\\", "/")
@@ -79,6 +86,14 @@ def _normalize_simulated_path(raw_path: str) -> str:
         raise ValueError("path cannot be empty")
 
     return posix_path.as_posix()
+
+
+def normalize_memory_namespace(raw_namespace: str) -> str:
+    """Normalize and validate a memory authorization namespace."""
+    namespace = raw_namespace.strip().casefold()
+    if not MEMORY_NAMESPACE_PATTERN.fullmatch(namespace):
+        raise ValueError("invalid memory namespace")
+    return namespace
 
 
 def _is_reserved_test_recipient(recipient: str) -> bool:
@@ -119,7 +134,7 @@ def read_file(
 ) -> ToolResult:
     """Read a file only from the in-memory synthetic file collection."""
     try:
-        normalized_path = _normalize_simulated_path(args.path)
+        normalized_path = normalize_simulated_path(args.path)
     except ValueError as exc:
         return _failed("read_file", str(exc))
 
@@ -133,6 +148,10 @@ def read_file(
         output={
             "path": normalized_path,
             **record.model_dump(mode="json"),
+        },
+        metadata={
+            "source_path": normalized_path,
+            "classification": record.classification.value,
         },
     )
 
@@ -172,6 +191,7 @@ def save_memory(
         id=f"memory-{len(env.memory) + 1:03d}",
         content=args.content,
         source=args.source,
+        namespace=args.namespace,
     )
     env.memory.append(entry)
     return ToolResult(
@@ -180,6 +200,121 @@ def save_memory(
         output=entry.model_dump(mode="json"),
         metadata={"simulated": True},
     )
+
+
+def quarantine_memory(
+    env: SimulatedEnvironment,
+    arguments: dict[str, Any],
+    *,
+    provenance_source_ids: tuple[str, ...],
+) -> ToolResult:
+    """Isolate an untrusted memory proposal from active memory retrieval."""
+    try:
+        args = SaveMemoryArgs.model_validate(arguments)
+    except ValidationError as exc:
+        return _failed(
+            "save_memory",
+            f"invalid tool arguments: {exc.error_count()} validation error(s)",
+        )
+    if not provenance_source_ids:
+        return _failed(
+            "save_memory",
+            "cannot quarantine memory without provenance source IDs",
+        )
+
+    candidate = MemoryCandidate(
+        id=f"candidate-{len(env.memory_candidates) + 1:03d}",
+        content=args.content,
+        claimed_source=args.source,
+        provenance_source_ids=list(provenance_source_ids),
+        namespace=args.namespace,
+        trust_level=TrustLevel.UNTRUSTED,
+        status=MemoryCandidateStatus.PENDING,
+    )
+    env.memory_candidates.append(candidate)
+    return ToolResult(
+        success=False,
+        tool_name="save_memory",
+        output=candidate.model_dump(mode="json"),
+        error="untrusted memory proposal quarantined pending review",
+        metadata={
+            "policy_action": "quarantine",
+            "reason_code": "UNTRUSTED_MEMORY_QUARANTINED",
+            "source_ids": list(provenance_source_ids),
+            "candidate_id": candidate.id,
+        },
+    )
+
+
+def memory_candidate_hash(candidate: MemoryCandidate) -> str:
+    """Bind review to the exact candidate content and recorded provenance."""
+    canonical = json.dumps(
+        {
+            "content": candidate.content,
+            "claimed_source": candidate.claimed_source,
+            "provenance_source_ids": candidate.provenance_source_ids,
+            "namespace": candidate.namespace,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _memory_candidate(env: SimulatedEnvironment, candidate_id: str) -> MemoryCandidate:
+    """Resolve one candidate without accepting positional references."""
+    candidate = next(
+        (item for item in env.memory_candidates if item.id == candidate_id),
+        None,
+    )
+    if candidate is None:
+        raise ValueError(f"unknown memory candidate: {candidate_id}")
+    return candidate
+
+
+def review_memory_candidate(
+    env: SimulatedEnvironment,
+    candidate_id: str,
+    *,
+    expected_content_hash: str,
+    approve: bool,
+) -> MemoryCandidate:
+    """Approve or reject an unchanged pending candidate after explicit review."""
+    candidate = _memory_candidate(env, candidate_id)
+    if candidate.status is not MemoryCandidateStatus.PENDING:
+        raise ValueError(f"memory candidate is not pending: {candidate.status.value}")
+    if memory_candidate_hash(candidate) != expected_content_hash:
+        raise ValueError("memory candidate content hash does not match")
+    candidate.status = (
+        MemoryCandidateStatus.APPROVED if approve else MemoryCandidateStatus.REJECTED
+    )
+    return candidate
+
+
+def promote_memory_candidate(
+    env: SimulatedEnvironment,
+    candidate_id: str,
+    *,
+    expected_content_hash: str,
+    target_namespace: str,
+) -> MemoryEntry:
+    """Promote an approved, unchanged candidate into one explicit namespace."""
+    candidate = _memory_candidate(env, candidate_id)
+    if candidate.status is not MemoryCandidateStatus.APPROVED:
+        raise ValueError(f"memory candidate is not approved: {candidate.status.value}")
+    if memory_candidate_hash(candidate) != expected_content_hash:
+        raise ValueError("memory candidate content hash does not match")
+    namespace = normalize_memory_namespace(target_namespace)
+    entry = MemoryEntry(
+        id=f"memory-{len(env.memory) + 1:03d}",
+        content=candidate.content,
+        source=f"candidate:{candidate.id}",
+        namespace=namespace,
+    )
+    env.memory.append(entry)
+    candidate.status = MemoryCandidateStatus.PROMOTED
+    return entry
 
 
 ToolHandler = Callable[[SimulatedEnvironment, Any], ToolResult]
@@ -203,7 +338,7 @@ TOOL_DESCRIPTIONS: dict[str, str] = {
         "This only appends to a local in-memory outbox and never sends network traffic."
     ),
     "save_memory": (
-        "Save a note and its source to the current run's local in-memory store."
+        "Save a note, source, and namespace to the current run's local memory."
     ),
 }
 

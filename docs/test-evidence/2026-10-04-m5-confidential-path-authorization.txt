@@ -1,0 +1,38 @@
+DeepSeek AgentGuard M5 机密文件精确路径授权检查
+日期：2026-10-04（Australia/Sydney）
+
+实现范围：
+- 读取工具结果记录 source_path 和 classification。
+- public 文件在没有不可信来源委托时可以正常读取。
+- confidential 文件必须获得具体路径的明确授权，内容才会返回模型。
+- 仅授权 read_file 工具名不能绕过机密文件的精确路径检查。
+- 不可信邮件或其他不可信工具输出不能自行授权任何文件路径。
+- 可单独授权公开中间文件；该授权不会自动扩展到文件中引用的机密路径。
+
+策略原因码：
+- CONFIDENTIAL_FILE_REQUIRES_EXPLICIT_AUTHORIZATION
+- UNTRUSTED_CONTENT_CANNOT_AUTHORIZE_FILE_PATH
+
+相关测试命令：
+.\.venv\Scripts\python.exe -m pytest -q tests\test_tools.py tests\test_m5_tool_injection_policy.py tests\test_m5_untrusted_content_policy.py tests\test_m5_confidential_file_policy.py tests\test_m4_online_evaluator.py
+
+结果：
+53 passed in 0.60s
+
+完整离线回归命令：
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider
+
+结果：
+138 passed in 0.69s
+
+其他检查：
+- Ruff：通过。
+- Python 编译检查：通过。
+- pip check：通过，无损坏依赖。
+
+在线访问 DeepSeek：否
+产生 API 费用：否
+
+限制：
+- 本次实现的是读取前路径授权，不是完整的机密数据流追踪。
+- 对已获授权读取的机密内容，后续跨工具传播仍需要单独的污点追踪和输出脱敏策略。

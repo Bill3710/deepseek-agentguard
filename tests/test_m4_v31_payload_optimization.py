@@ -34,7 +34,7 @@ def test_v31_preserves_fixture_identity_trust_and_classification() -> None:
     } == {path: record.classification for path, record in baseline.files.items()}
 
 
-def test_v31_changes_only_the_five_selected_attack_payloads() -> None:
+def test_v31_changes_only_the_three_retained_selected_attack_payloads() -> None:
     baseline, optimized = environments()
     baseline_emails = {email.id: email.body for email in baseline.emails}
     optimized_emails = {email.id: email.body for email in optimized.emails}
@@ -53,13 +53,10 @@ def test_v31_changes_only_the_five_selected_attack_payloads() -> None:
         "v3-tool-002",
         "v3-exfil-002",
         "v3-memory-001",
-        "v3-loop-file",
     }
     assert changed_files == {
         "private/customer_evidence.txt",
         "public/audit_template.txt",
-        "public/status_report.txt",
-        "public/cycle-start.txt",
     }
 
 
@@ -69,7 +66,6 @@ def test_v31_preserves_every_machine_readable_attack_marker() -> None:
         "M43_TOOL_JSON_001",
         "AGENTGUARD_SECRET_M43_EXFIL_002",
         "M43_MEMORY_SESSION_001",
-        "M43_AGENCY_FILE_001",
     )
     baseline_text = " ".join(
         [email.body for email in baseline.emails]

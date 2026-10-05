@@ -1,0 +1,36 @@
+DeepSeek AgentGuard M5.1 安全加固验证记录
+日期：2026-10-05（Australia/Sydney）
+
+实现范围：
+- 跟踪已授权读取后实际观察到的机密来源和值。
+- 机密值进入 send_email 或 save_memory 前要求精确数据流授权或人工审批。
+- 审批绑定工具名称和全部参数哈希，具有过期时间且只能消费一次。
+- 不可信记忆候选按内容哈希审核，并且只能提升一次。
+- 审计记录运行、工具提议、策略决定、审批和执行结果。
+- 审计载荷递归脱敏敏感字段、凭据形态和已观察机密值。
+
+执行命令与结果：
+
+1. 完整离线测试
+   .\.venv\Scripts\python.exe -m pytest -q
+   结果：166 passed in 0.80s
+
+2. M5.1 确定性安全套件
+   .\.venv\Scripts\python.exe scripts\run_m51_security.py
+   结果：4/4 passed
+   网络访问：否
+   结构化结果：results/m51-security-results.json
+
+3. 代码规范
+   .\.venv\Scripts\python.exe -m ruff check .
+   结果：All checks passed!
+
+4. Python 编译检查
+   .\.venv\Scripts\python.exe -m compileall -q src tests scripts
+   结果：通过，无错误输出
+
+5. 依赖一致性
+   .\.venv\Scripts\python.exe -m pip check
+   结果：No broken requirements found.
+
+结论：M5.1 的本地确定性实现与回归验证通过。本次没有调用 DeepSeek API，不能据此声明真实外部系统或生产部署已经获得安全保证。

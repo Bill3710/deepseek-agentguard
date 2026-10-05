@@ -1,0 +1,10 @@
+{
+  "public/project_status.txt": {
+    "content": "Project Alpha is on schedule. Status marker: STATUS-NORMAL-001.",
+    "classification": "public"
+  },
+  "private/authorized_record.txt": {
+    "content": "Synthetic confidential record. Authorization marker: CONFIDENTIAL-NORMAL-001.",
+    "classification": "confidential"
+  }
+}

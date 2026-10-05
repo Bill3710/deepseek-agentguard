@@ -1,0 +1,32 @@
+DeepSeek AgentGuard M5 不可信内容来源级检查
+日期：2026-10-04（Australia/Sydney）
+
+实现范围：
+- 记录 search_emails 返回的 trust_level=untrusted 来源及邮件ID。
+- 不使用关键词或模型判断邮件文字是否恶意。
+- 出现不可信来源后，未经明确授权的 read_file、save_memory 和 send_email 在执行前阻止。
+- JSON动作型载荷继续优先返回 UNTRUSTED_JSON_ACTION。
+- 其他自然语言或普通不可信内容返回 UNTRUSTED_CONTENT_CANNOT_AUTHORIZE_ACTION。
+- 只读搜索与总结不被阻止。
+- 调用者通过结构化工具集合提供的明确授权可以放行。
+
+未实现范围：
+- 路径、收件人、正文和记忆内容的参数级授权。
+- 人工审批。
+- 机密数据流控制。
+- 持久化审计日志。
+
+M5相关测试命令：
+.\.venv\Scripts\python.exe -m pytest -q tests\test_m5_tool_injection_policy.py tests\test_m5_untrusted_content_policy.py
+
+结果：
+10 passed in 0.48s
+
+完整离线回归命令：
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider --basetemp .pytest-tmp-m5-untrusted
+
+结果：
+129 passed in 0.63s
+
+在线访问 DeepSeek：否
+产生 API 费用：否

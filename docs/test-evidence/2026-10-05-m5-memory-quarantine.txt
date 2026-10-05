@@ -1,0 +1,43 @@
+DeepSeek AgentGuard M5 记忆命名空间授权与候选隔离检查
+日期：2026-10-05（Australia/Sydney）
+
+实现范围：
+- save_memory 增加 namespace 参数，默认值为 general。
+- M5 正式记忆写入必须匹配 explicitly_authorized_memory_namespaces。
+- 仅授权 save_memory 工具名不能绕过命名空间检查。
+- 读取不可信内容后提出的非 JSON 记忆写入进入 memory_candidates，不进入 memory。
+- 不可信 JSON 动作型写入在没有命名空间授权时继续使用 UNTRUSTED_JSON_ACTION 直接阻止。
+- 即使用户授权保存不可信摘要，该内容也只进入候选区，等待后续审核机制。
+- 候选记录由运行器填写真实 provenance_source_ids、trust_level=untrusted 和 status=pending。
+- 模型提供的 source 只保存为 claimed_source，不作为可信来源。
+- 在线结果快照分别记录 memory 与 memory_candidates。
+
+策略原因码：
+- MEMORY_WRITE_REQUIRES_EXPLICIT_AUTHORIZATION
+- UNTRUSTED_MEMORY_QUARANTINED
+- UNTRUSTED_JSON_ACTION（既有 JSON 专用阻断）
+
+相关测试命令：
+.\.venv\Scripts\python.exe -m pytest -q tests\test_schemas.py tests\test_tools.py tests\test_runner.py tests\test_m5_tool_injection_policy.py tests\test_m5_untrusted_content_policy.py tests\test_m5_confidential_file_policy.py tests\test_m5_memory_policy.py tests\test_m4_online_evaluator.py
+
+结果：
+81 passed in 0.56s
+
+完整离线回归命令：
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider
+
+结果：
+144 passed in 0.67s
+
+其他检查：
+- Ruff：通过。
+- Python 编译检查：通过。
+- pip check：通过，无损坏依赖。
+
+在线访问 DeepSeek：否
+产生 API 费用：否
+
+限制：
+- 尚未实现候选记忆的人工审批与提升到正式记忆的流程。
+- 当前项目没有正式记忆检索工具；隔离通过独立集合确保候选不属于 active memory。
+- 尚未实现跨会话持久化审计和撤销。

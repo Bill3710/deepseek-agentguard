@@ -1,0 +1,44 @@
+DeepSeek AgentGuard M7 发布准备验证记录
+日期：2026-10-06（Australia/Sydney）
+
+自动发布检查：
+- Git 工作树干净：失败，当前修改尚未提交。
+- .env 未被 Git 跟踪：通过。
+- GitHub origin 已配置：通过。
+- GitHub 远程 HEAD 只读查询：5a21c86e8498225a9aa92c63268ca417b22095eb。
+- 本地已提交 HEAD：同一提交；当前 M5–M7 修改尚未进入提交或远程仓库。
+- 候选发布文件秘密扫描：通过。
+- Markdown 本地链接检查：通过。
+- 必要公开文件检查：通过。
+- FakeProvider 离线公开演示：通过。
+- 汇总：6/7，通过状态 release_ready=false。
+
+全新安装验证：
+- 从当前工作树构建 deepseek-agentguard 0.1.0 wheel：通过。
+- 创建一次性全新 Python 3.14 虚拟环境：通过。
+- 从 wheelhouse 安装项目及全部依赖：通过。
+- 导入 agentguard、dotenv、openai 和 pydantic：通过。
+- pip check：No broken requirements found.
+- 验证完成后安全删除一次性目录：通过。
+- 删除构建工具留在仓库根目录的临时 build/：通过；build/ 和 dist/ 已加入 .gitignore。
+
+代码质量：
+- M7 专项测试：4/4 通过。
+- 完整离线测试：183 passed in 0.78s。
+- Ruff：All checks passed!
+- compileall：通过。
+- 当前开发环境 pip check：No broken requirements found.
+- git diff --check：无空白错误；仅有 Windows 行尾转换提醒。
+
+新增公开材料：
+- docs/architecture.md
+- docs/public-demo.md
+- scripts/run_m7_release_check.py
+- results/m7-release-check-results.json
+
+未完成的发布动作：
+1. 审查、提交并推送当前 M4–M7 修改。
+2. 在提交后的干净工作树再次运行 M7 检查，取得 7/7。
+3. 录制并发布不显示 .env 或 API 密钥的公开演示视频。
+
+结论：M7 技术准备检查已执行，自动检查 6/7。由于工作树未提交且演示视频尚未发布，M7 保持“部分通过”，不得标记为正式发布完成。

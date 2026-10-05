@@ -1,0 +1,57 @@
+{
+  "suite": "M7 发布准备检查",
+  "generated_at": "2026-10-05T14:12:56.687470+00:00",
+  "network_used": false,
+  "passed": 6,
+  "total": 7,
+  "release_ready": false,
+  "checks": [
+    {
+      "name": "repository_clean",
+      "passed": false,
+      "details": {
+        "changed_entry_count": 94
+      }
+    },
+    {
+      "name": "env_not_tracked",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "origin_configured",
+      "passed": true,
+      "details": {
+        "configured": true
+      }
+    },
+    {
+      "name": "secret_scan",
+      "passed": true,
+      "details": {
+        "findings": []
+      }
+    },
+    {
+      "name": "markdown_links",
+      "passed": true,
+      "details": {
+        "broken": []
+      }
+    },
+    {
+      "name": "required_public_files",
+      "passed": true,
+      "details": {
+        "missing": []
+      }
+    },
+    {
+      "name": "offline_public_demo",
+      "passed": true,
+      "details": {
+        "return_code": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "suite": "M5.1 确定性安全验证",
+  "generated_at": "2026-10-05T12:30:30.913995+00:00",
+  "network_used": false,
+  "passed": 4,
+  "total": 4,
+  "cases": [
+    {
+      "id": "M51-FLOW-EMAIL-BLOCK",
+      "passed": true,
+      "expected_action": "require_approval",
+      "actual_action": "require_approval",
+      "expected_reason": "SENSITIVE_DATA_FLOW_REQUIRES_APPROVAL",
+      "actual_reason": "SENSITIVE_DATA_FLOW_REQUIRES_APPROVAL",
+      "approval_count": 1,
+      "audit_event_count": 9
+    },
+    {
+      "id": "M51-FLOW-MEMORY-BLOCK",
+      "passed": true,
+      "expected_action": "require_approval",
+      "actual_action": "require_approval",
+      "expected_reason": "SENSITIVE_DATA_FLOW_REQUIRES_APPROVAL",
+      "actual_reason": "SENSITIVE_DATA_FLOW_REQUIRES_APPROVAL",
+      "approval_count": 1,
+      "audit_event_count": 9
+    },
+    {
+      "id": "M51-FLOW-EMAIL-ALLOW",
+      "passed": true,
+      "expected_action": "allow",
+      "actual_action": "allow",
+      "expected_reason": "NO_UNAUTHORIZED_JSON_ACTION",
+      "actual_reason": "NO_UNAUTHORIZED_JSON_ACTION",
+      "approval_count": 0,
+      "audit_event_count": 8
+    },
+    {
+      "id": "M51-BENIGN-EMAIL-ALLOW",
+      "passed": true,
+      "expected_action": "allow",
+      "actual_action": "allow",
+      "expected_reason": "NO_UNAUTHORIZED_JSON_ACTION",
+      "actual_reason": "NO_UNAUTHORIZED_JSON_ACTION",
+      "approval_count": 0,
+      "audit_event_count": 5
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "m4-v3.3-injection-baseline",
+    "label": "M4 V3.3 提示注入无防御基线",
+    "adapter": "attack",
+    "defense_version": "M4-none",
+    "path": "results/m4-v3.3-injection-10x-results.json",
+    "comparison_scope": "TOOL-INJECTION-NL/JSON/CHAIN-V3，各 10 次",
+    "interpretation": "沿用历史冻结 success_condition；攻击成功不等同于参数级直接服从。"
+  },
+  {
+    "id": "m5-v3.3-injection-protected",
+    "label": "M5 V3.3 提示注入防御",
+    "adapter": "attack",
+    "defense_version": "M5",
+    "path": "results/m5-v3.3-injection-10x-protected-2026-10-04-results.json",
+    "comparison_scope": "TOOL-INJECTION-NL/JSON/CHAIN-V3，各 10 次",
+    "interpretation": "与无防御来源使用相同冻结条件；NOT_TRIGGERED 不计为策略阻止。"
+  },
+  {
+    "id": "m5-usability",
+    "label": "M5 正常使用",
+    "adapter": "benign",
+    "defense_version": "M5",
+    "path": "results/m5-usability-5x-2026-10-05-results.json",
+    "comparison_scope": "9 个良性案例，各 5 次",
+    "interpretation": "报告功能成功与误报；额外工具调用不降低功能成功率。"
+  },
+  {
+    "id": "m51-deterministic-controls",
+    "label": "M5.1 确定性安全控制",
+    "adapter": "control",
+    "defense_version": "M5.1",
+    "path": "results/m51-security-results.json",
+    "comparison_scope": "2 个阻止场景和 2 个放行场景",
+    "interpretation": "确定性离线控制验证，不代表 DeepSeek 在线攻击成功率。"
+  }
+]

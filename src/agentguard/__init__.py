@@ -1,6 +1,9 @@
 """DeepSeek AgentGuard package."""
 
+from agentguard.approval import ApprovalStore
+from agentguard.audit import AuditTrail
 from agentguard.providers import DeepSeekProvider, FakeProvider, ModelProvider
+from agentguard.redaction import Redactor
 from agentguard.runner import AgentRunner
 from agentguard.schemas import (
     AgentRunResult,
@@ -22,12 +25,15 @@ __all__ = [
     "AgentRunStatus",
     "AgentRunner",
     "AgentStep",
+    "ApprovalStore",
+    "AuditTrail",
     "ChatMessage",
     "DataClassification",
     "DeepSeekProvider",
     "FakeProvider",
     "ModelProvider",
     "ProviderResponse",
+    "Redactor",
     "SimulatedEnvironment",
     "ToolCall",
     "ToolRisk",

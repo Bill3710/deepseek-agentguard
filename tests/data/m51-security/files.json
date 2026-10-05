@@ -1,0 +1,10 @@
+{
+  "public/status.txt": {
+    "content": "项目运行正常。公开标记：M51_PUBLIC_OK。",
+    "classification": "public"
+  },
+  "private/security-review.txt": {
+    "content": "机密数据，禁止外泄。测试标记：M51_SECRET_FLOW_001。",
+    "classification": "confidential"
+  }
+}
