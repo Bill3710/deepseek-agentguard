@@ -1,4 +1,4 @@
-"""Aggregate existing M4/M5/M5.1 reports into reproducible M6 metrics."""
+"""汇总现有 M4、M5 与 M5.1 报告并生成可复现 M6 指标。"""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ DEFAULT_SUMMARY = PROJECT_ROOT / "results" / "m6-evaluation-summary.md"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """解析 M6 汇总选项；参数：argv 可选命令行参数；返回：参数命名空间。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
@@ -30,7 +31,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def load_manifest(path: Path = DEFAULT_MANIFEST) -> list[dict[str, Any]]:
-    """Load a unique, non-empty source-report manifest."""
+    """加载唯一且非空的来源报告清单；参数：path 清单路径；返回：来源列表。"""
     with path.open(encoding="utf-8") as stream:
         sources = json.load(stream)
     if not isinstance(sources, list) or not sources:
@@ -46,7 +47,7 @@ def evaluate_sources(
     *,
     project_root: Path = PROJECT_ROOT,
 ) -> tuple[list[Any], list[dict[str, Any]]]:
-    """Normalize every report and calculate per-source comparisons."""
+    """标准化报告并计算逐来源对比；参数：sources 来源配置、strict 是否严格；返回：记录与对比。"""
     all_records = []
     comparisons = []
     for source in sources:
@@ -76,7 +77,7 @@ def evaluate_sources(
 
 
 def build_report(sources: list[dict[str, Any]]) -> dict[str, Any]:
-    """Build a public-safe M6 report with a stable content fingerprint."""
+    """构建含稳定内容指纹的公开 M6 报告；参数：sources 来源配置；返回：报告字典。"""
     records, comparisons = evaluate_sources(sources)
     metrics = calculate_metrics(records)
     return {
@@ -99,6 +100,7 @@ def build_report(sources: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """生成并保存 M6 评估报告；参数：argv 可选命令行参数；返回：退出码。"""
     args = parse_args(argv)
     sources = load_manifest(args.manifest)
     report = build_report(sources)

@@ -1,4 +1,4 @@
-"""Baseline agent loop that connects a model provider to simulated tools."""
+"""连接模型提供方与模拟工具的基线智能体执行循环。"""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ BASELINE_SYSTEM_PROMPT = (
 
 
 class AgentRunner:
-    """Run an undefended baseline agent with bounded model turns."""
+    """运行限制轮数且不含防御的基线智能体；参数：模型提供方、模拟环境、最大步数和系统提示词。"""
 
     def __init__(
         self,
@@ -33,6 +33,7 @@ class AgentRunner:
         max_steps: int = DEFAULT_MAX_STEPS,
         system_prompt: str = BASELINE_SYSTEM_PROMPT,
     ) -> None:
+        """初始化执行器；参数：provider、environment、max_steps 与 system_prompt；返回：无。"""
         if max_steps <= 0:
             raise ValueError("max_steps must be greater than zero")
         system_prompt = system_prompt.strip()
@@ -45,7 +46,7 @@ class AgentRunner:
         self.system_prompt = system_prompt
 
     def run(self, task: str) -> AgentRunResult:
-        """Execute one task until a final answer, provider error, or step limit."""
+        """执行任务直至完成、模型出错或达到步数上限；参数：task 用户任务；返回：完整运行结果。"""
         task = task.strip()
         if not task:
             raise ValueError("task cannot be blank")
@@ -105,7 +106,7 @@ class AgentRunner:
         tool_calls: list[ToolCall],
         messages: list[ChatMessage],
     ) -> list[ToolResult]:
-        """Execute proposed calls in order and append normalized tool messages."""
+        """依次执行工具调用并追加标准化消息；参数：调用列表与消息列表；返回：工具结果列表。"""
         results: list[ToolResult] = []
         for tool_call in tool_calls:
             result = execute_tool(

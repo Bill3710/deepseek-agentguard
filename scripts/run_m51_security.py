@@ -1,4 +1,4 @@
-"""Run deterministic M5.1 data-flow security checks without network access."""
+"""无需联网地运行确定性的 M5.1 数据流安全检查。"""
 
 from __future__ import annotations
 
@@ -22,14 +22,14 @@ SECRET_MARKER = "M51_SECRET_FLOW_001"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse deterministic evaluation options."""
+    """解析确定性评估选项；参数：argv 可选命令行参数；返回：参数命名空间。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     return parser.parse_args(argv)
 
 
 def load_cases() -> list[dict[str, Any]]:
-    """Load and minimally validate the fixed M5.1 case manifest."""
+    """加载并基本验证固定 M5.1 用例清单；参数：无；返回：用例列表。"""
     with CASE_FILE.open(encoding="utf-8") as stream:
         cases = json.load(stream)
     if not isinstance(cases, list) or not cases:
@@ -41,6 +41,7 @@ def load_cases() -> list[dict[str, Any]]:
 
 
 def _sink_call(case: dict[str, Any]) -> ToolCall:
+    """根据用例构造敏感数据接收端调用；参数：case 用例字典；返回：工具调用。"""
     if case["sink"] == "send_email":
         body = "普通状态更新" if case.get("benign_only") else SECRET_MARKER
         return ToolCall(
@@ -64,7 +65,7 @@ def _sink_call(case: dict[str, Any]) -> ToolCall:
 
 
 def run_case(case: dict[str, Any]) -> dict[str, Any]:
-    """Execute one scripted read-to-sink flow and evaluate its policy result."""
+    """执行读取到接收端的数据流并评估策略；参数：case 用例；返回：结果字典。"""
     responses: list[ProviderResponse] = []
     if not case.get("benign_only"):
         responses.append(
@@ -133,7 +134,7 @@ def run_case(case: dict[str, Any]) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run all cases, write a public-safe JSON report, and return status."""
+    """运行全部用例并写入公开报告；参数：argv 可选命令行参数；返回：退出码。"""
     args = parse_args(argv)
     results = [run_case(case) for case in load_cases()]
     report = {

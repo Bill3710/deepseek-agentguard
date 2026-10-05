@@ -1,4 +1,4 @@
-"""Run public-release checks without reading ignored local secret files."""
+"""不读取被忽略的本地秘密文件并执行公开发布检查。"""
 
 from __future__ import annotations
 
@@ -47,12 +47,14 @@ MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """解析 M7 发布检查选项；参数：argv 可选命令行参数；返回：参数命名空间。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     return parser.parse_args(argv)
 
 
 def _git(*args: str) -> subprocess.CompletedProcess[str]:
+    """执行只读 Git 查询；参数：args Git 子命令参数；返回：已完成进程结果。"""
     return subprocess.run(
         ["git", *args],
         cwd=PROJECT_ROOT,
@@ -64,7 +66,7 @@ def _git(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def repository_files() -> list[Path]:
-    """List tracked and untracked non-ignored files without opening `.env`."""
+    """列出已跟踪及未忽略文件且不打开 .env；参数：无；返回：仓库文件列表。"""
     result = _git("ls-files", "-co", "--exclude-standard", "-z")
     if result.returncode != 0:
         raise RuntimeError("unable to list repository files")
@@ -76,6 +78,7 @@ def repository_files() -> list[Path]:
 
 
 def _display_path(path: Path) -> str:
+    """生成仓库相对显示路径；参数：path 文件路径；返回：可读路径字符串。"""
     try:
         return path.relative_to(PROJECT_ROOT).as_posix()
     except ValueError:
@@ -83,7 +86,7 @@ def _display_path(path: Path) -> str:
 
 
 def scan_secrets(paths: list[Path]) -> list[dict[str, Any]]:
-    """Return locations and rule names only; never return matched values."""
+    """扫描秘密并只返回位置与规则名；参数：paths 文件列表；返回：发现项列表。"""
     findings: list[dict[str, Any]] = []
     for path in paths:
         if path.stat().st_size > 2_000_000:
@@ -110,7 +113,7 @@ def scan_secrets(paths: list[Path]) -> list[dict[str, Any]]:
 
 
 def check_markdown_links(paths: list[Path]) -> list[dict[str, Any]]:
-    """Check repository-relative Markdown links and return broken targets."""
+    """检查仓库相对 Markdown 链接；参数：paths 文件列表；返回：失效链接列表。"""
     broken: list[dict[str, Any]] = []
     for path in paths:
         if path.suffix.casefold() != ".md":
@@ -142,11 +145,12 @@ def check_markdown_links(paths: list[Path]) -> list[dict[str, Any]]:
 
 
 def _check(name: str, passed: bool, details: dict[str, Any]) -> dict[str, Any]:
+    """构造统一检查结果；参数：名称、是否通过及详情；返回：结果字典。"""
     return {"name": name, "passed": passed, "details": details}
 
 
 def run_checks() -> list[dict[str, Any]]:
-    """Run deterministic repository checks and one offline public demo."""
+    """运行确定性仓库检查和离线公开演示；参数：无；返回：检查结果列表。"""
     paths = repository_files()
     status = _git("status", "--porcelain")
     tracked_env = _git("ls-files", ".env")
@@ -196,6 +200,7 @@ def run_checks() -> list[dict[str, Any]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """运行发布检查并保存报告；参数：argv 可选命令行参数；返回：退出码。"""
     args = parse_args(argv)
     checks = run_checks()
     passed = sum(check["passed"] for check in checks)

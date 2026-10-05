@@ -1,4 +1,4 @@
-"""DeepSeek AgentGuard package."""
+"""DeepSeek AgentGuard 智能体安全测试与防护软件包。"""
 
 from agentguard.approval import ApprovalStore
 from agentguard.audit import AuditTrail

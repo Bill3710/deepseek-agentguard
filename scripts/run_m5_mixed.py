@@ -1,4 +1,4 @@
-"""Run randomized 4:1 benign-to-attack M5 online evaluation rounds."""
+"""按正常任务与攻击 4:1 随机运行 M5 联网混合评估。"""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ ATTACK_CATEGORIES = ("prompt_injection", "confidentiality", "integrity")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse mixed-evaluation options."""
+    """解析混合评估选项；参数：argv 可选命令行参数；返回：参数命名空间。"""
     parser = argparse.ArgumentParser(
         description="Run randomized M5 rounds with four benign tasks and one attack.",
     )
@@ -53,7 +53,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def load_attack_pool() -> list[dict[str, Any]]:
-    """Load only the nine implemented V3 attack cases."""
+    """只加载已实现的九个 V3 攻击用例；参数：无；返回：攻击用例列表。"""
     cases = load_attack_cases(ATTACK_CASE_FILE)
     selected = [case for case in cases if case["category"] in ATTACK_CATEGORIES]
     if len(selected) != 9:
@@ -68,7 +68,7 @@ def build_plan(
     rounds: int,
     seed: int,
 ) -> list[dict[str, Any]]:
-    """Build reproducible 4:1 rounds with random cases and within-round order."""
+    """构造可复现的 4:1 随机轮次；参数：轮数、种子和两类用例池；返回：执行计划。"""
     if len(normal_cases) < 4:
         raise ValueError("mixed evaluation requires at least four normal cases")
     by_category: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -117,7 +117,7 @@ def build_plan(
 
 
 def _policy_actions(tool_calls: list[dict[str, Any]]) -> list[str]:
-    """Return policy actions in trace order."""
+    """按轨迹顺序提取策略动作；参数：tool_calls 工具调用；返回：动作列表。"""
     return [
         action
         for call in tool_calls
@@ -129,7 +129,7 @@ def normalize_normal_result(
     plan_entry: dict[str, Any],
     run: dict[str, Any],
 ) -> dict[str, Any]:
-    """Normalize one benign result for the mixed report."""
+    """标准化一个正常任务结果；参数：计划项与原始结果；返回：混合报告记录。"""
     functional_passed = all(
         run["checks"][name]
         for name in ("status", "answer", "state", "no_unexpected_policy_block")
@@ -149,7 +149,7 @@ def normalize_attack_result(
     plan_entry: dict[str, Any],
     run: dict[str, Any],
 ) -> dict[str, Any]:
-    """Normalize one attack result for the mixed report."""
+    """标准化一个攻击结果；参数：计划项与原始结果；返回：混合报告记录。"""
     policy_actions = _policy_actions(run["tool_calls"])
     return {
         **plan_entry,
@@ -163,7 +163,7 @@ def normalize_attack_result(
 
 
 def update_summary(report: dict[str, Any]) -> None:
-    """Update ratio, usability, attack, and random-distribution metrics."""
+    """更新比例、可用性、攻击和随机分布指标；参数：report 报告；返回：无。"""
     runs = report["runs"]
     normal = [run for run in runs if run["kind"] == "normal"]
     attacks = [run for run in runs if run["kind"] == "attack"]
@@ -218,7 +218,7 @@ def update_summary(report: dict[str, Any]) -> None:
 
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
-    """Persist the complete plan and all finished results incrementally."""
+    """增量保存完整计划与结果；参数：path 路径、report 报告；返回：无。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
@@ -227,7 +227,7 @@ def write_report(path: Path, report: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Execute a randomized mixed M5 evaluation with DeepSeek."""
+    """使用 DeepSeek 执行随机混合评估；参数：argv 可选命令行参数；返回：退出码。"""
     args = parse_args(argv)
     try:
         normal_cases = load_normal_cases()

@@ -1,4 +1,4 @@
-"""Run the five M3 usability cases against DeepSeek and save public-safe results."""
+"""联网运行五个 M3 可用性用例并保存可公开结果。"""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ DEFAULT_OUTPUT = PROJECT_ROOT / "results" / "m3-usability-results.json"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse repeat count and output location."""
+    """解析重复次数和输出位置；参数：argv 可选命令行参数；返回：参数命名空间。"""
     parser = argparse.ArgumentParser(
         description="Run the five M3 usability cases with the real DeepSeek provider.",
     )
@@ -47,7 +47,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def load_cases() -> list[dict[str, Any]]:
-    """Load the validated public M3 case definitions."""
+    """加载已验证的公开 M3 用例；参数：无；返回：用例字典列表。"""
     with CASE_FILE.open(encoding="utf-8") as stream:
         cases = json.load(stream)
     if not isinstance(cases, list) or len(cases) != 5:
@@ -56,7 +56,7 @@ def load_cases() -> list[dict[str, Any]]:
 
 
 def flatten_tool_calls(result: AgentRunResult) -> list[dict[str, Any]]:
-    """Create a public-safe trace without credentials or request headers."""
+    """生成不含凭据和请求头的公开轨迹；参数：result 运行结果；返回：调用记录列表。"""
     trace = []
     for step in result.steps:
         for tool_call, tool_result in zip(
@@ -78,7 +78,7 @@ def flatten_tool_calls(result: AgentRunResult) -> list[dict[str, Any]]:
 
 
 def snapshot_state(environment: SimulatedEnvironment) -> dict[str, Any]:
-    """Capture only synthetic mutable state needed for acceptance checks."""
+    """提取验收所需的合成可变状态；参数：environment 模拟环境；返回：状态字典。"""
     return {
         "memory_count": len(environment.memory),
         "memory": [entry.model_dump(mode="json") for entry in environment.memory],
@@ -91,7 +91,7 @@ def check_expected_state(
     expected: dict[str, Any],
     actual: dict[str, Any],
 ) -> bool:
-    """Check exact state requirements for memory and outbox cases."""
+    """检查记忆和发件箱的精确状态；参数：expected 期望、actual 实际；返回：是否符合。"""
     if not expected:
         return True
     if "memory_count" in expected and expected["memory_count"] != actual["memory_count"]:
@@ -118,7 +118,7 @@ def check_expected_state(
 
 
 def check_expected_facts(expected: dict[str, Any], answer: str | None) -> bool:
-    """Apply small deterministic checks to facts grounded in synthetic data."""
+    """确定性核对合成数据事实；参数：expected 期望事实、answer 回答；返回：是否符合。"""
     if not answer:
         return False
     normalized = answer.casefold()
@@ -143,7 +143,7 @@ def evaluate_run(
     case: dict[str, Any],
     run_number: int,
 ) -> dict[str, Any]:
-    """Run one online case in a fresh synthetic environment."""
+    """在全新模拟环境运行一个联网用例；参数：用例、轮次和提供方；返回：运行记录。"""
     environment = SimulatedEnvironment.from_data_directory(DATA_DIRECTORY)
     runner = AgentRunner(provider=provider, environment=environment)
     started = perf_counter()
@@ -182,7 +182,7 @@ def evaluate_run(
 
 
 def update_summary(report: dict[str, Any]) -> None:
-    """Refresh aggregate counts after each completed online run."""
+    """刷新完成运行后的汇总计数；参数：report 报告字典；返回：无。"""
     runs = report["runs"]
     passed = sum(1 for run in runs if run["passed"])
     report["summary"] = {
@@ -198,7 +198,7 @@ def update_summary(report: dict[str, Any]) -> None:
 
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
-    """Persist progress after every run so partial results survive interruption."""
+    """每轮后保存进度以支持中断恢复；参数：path 路径、report 报告；返回：无。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
@@ -207,7 +207,7 @@ def write_report(path: Path, report: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Execute all cases repeatedly and save an aggregate JSON report."""
+    """重复执行全部用例并保存汇总报告；参数：argv 可选命令行参数；返回：退出码。"""
     args = parse_args(argv)
     cases = load_cases()
     try:

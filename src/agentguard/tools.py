@@ -1,4 +1,4 @@
-"""Deterministic local tools with no real external side effects."""
+"""提供不产生真实外部副作用的确定性本地模拟工具。"""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ MEMORY_NAMESPACE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,99}$")
 
 @dataclass(slots=True)
 class SimulatedEnvironment:
-    """Isolated state used by one local AgentGuard run."""
+    """单次本地运行使用的隔离状态；字段：邮件、文件、发件箱、记忆及隔离候选。"""
 
     emails: list[EmailRecord]
     files: dict[str, FileRecord]
@@ -46,7 +46,7 @@ class SimulatedEnvironment:
 
     @classmethod
     def from_data_directory(cls, data_directory: Path) -> SimulatedEnvironment:
-        """Load and validate synthetic email and file fixtures."""
+        """加载并验证合成邮件和文件；参数：data_directory 数据目录；返回：模拟环境。"""
         email_path = data_directory / "emails.json"
         file_path = data_directory / "files.json"
 
@@ -69,11 +69,12 @@ class SimulatedEnvironment:
 
 
 def _failed(tool_name: str, error: str) -> ToolResult:
+    """构造失败工具结果；参数：tool_name 工具名、error 错误信息；返回：失败结果。"""
     return ToolResult(success=False, tool_name=tool_name, error=error)
 
 
 def normalize_simulated_path(raw_path: str) -> str:
-    """Normalize a synthetic path and reject absolute or traversing paths."""
+    """规范化模拟路径并拒绝绝对或越界路径；参数：raw_path 原路径；返回：安全相对路径。"""
     windows_path = PureWindowsPath(raw_path)
     normalized_text = raw_path.replace("\\", "/")
     posix_path = PurePosixPath(normalized_text)
@@ -89,7 +90,7 @@ def normalize_simulated_path(raw_path: str) -> str:
 
 
 def normalize_memory_namespace(raw_namespace: str) -> str:
-    """Normalize and validate a memory authorization namespace."""
+    """规范化并验证记忆命名空间；参数：raw_namespace 原名称；返回：规范名称。"""
     namespace = raw_namespace.strip().casefold()
     if not MEMORY_NAMESPACE_PATTERN.fullmatch(namespace):
         raise ValueError("invalid memory namespace")
@@ -97,7 +98,7 @@ def normalize_memory_namespace(raw_namespace: str) -> str:
 
 
 def _is_reserved_test_recipient(recipient: str) -> bool:
-    """Return whether a recipient uses an RFC-reserved example domain."""
+    """判断收件人是否使用 RFC 保留测试域；参数：recipient 邮箱；返回：是否为测试地址。"""
     if recipient.count("@") != 1:
         return False
     local_part, domain = recipient.rsplit("@", 1)
@@ -108,7 +109,7 @@ def search_emails(
     env: SimulatedEnvironment,
     args: SearchEmailsArgs,
 ) -> ToolResult:
-    """Search synthetic email subjects and bodies without changing state."""
+    """搜索合成邮件且不改变状态；参数：env 环境、query 查询词；返回：工具结果。"""
     query = args.query.casefold()
     all_matches = [
         email
@@ -132,7 +133,7 @@ def read_file(
     env: SimulatedEnvironment,
     args: ReadFileArgs,
 ) -> ToolResult:
-    """Read a file only from the in-memory synthetic file collection."""
+    """从内存合成文件集合读取文件；参数：env 环境、path 文件路径；返回：工具结果。"""
     try:
         normalized_path = normalize_simulated_path(args.path)
     except ValueError as exc:
@@ -160,7 +161,7 @@ def send_email(
     env: SimulatedEnvironment,
     args: SendEmailArgs,
 ) -> ToolResult:
-    """Append an email to the local outbox without sending network traffic."""
+    """把邮件加入本地发件箱且不联网发送；参数：env、收件人、主题和正文；返回：工具结果。"""
     if not _is_reserved_test_recipient(args.to):
         return _failed(
             "send_email",
@@ -186,7 +187,7 @@ def save_memory(
     env: SimulatedEnvironment,
     args: SaveMemoryArgs,
 ) -> ToolResult:
-    """Append one entry to the local in-memory store."""
+    """向本地活动记忆追加条目；参数：env、content 内容、namespace 命名空间；返回：工具结果。"""
     entry = MemoryEntry(
         id=f"memory-{len(env.memory) + 1:03d}",
         content=args.content,
@@ -208,7 +209,7 @@ def quarantine_memory(
     *,
     provenance_source_ids: tuple[str, ...],
 ) -> ToolResult:
-    """Isolate an untrusted memory proposal from active memory retrieval."""
+    """隔离不可信记忆提案；参数：环境、内容、命名空间、来源编号和时间；返回：工具结果。"""
     try:
         args = SaveMemoryArgs.model_validate(arguments)
     except ValidationError as exc:
@@ -247,7 +248,7 @@ def quarantine_memory(
 
 
 def memory_candidate_hash(candidate: MemoryCandidate) -> str:
-    """Bind review to the exact candidate content and recorded provenance."""
+    """计算绑定候选内容与来源的哈希；参数：candidate 记忆候选；返回：SHA-256 摘要。"""
     canonical = json.dumps(
         {
             "content": candidate.content,
@@ -263,7 +264,7 @@ def memory_candidate_hash(candidate: MemoryCandidate) -> str:
 
 
 def _memory_candidate(env: SimulatedEnvironment, candidate_id: str) -> MemoryCandidate:
-    """Resolve one candidate without accepting positional references."""
+    """按精确编号查找候选且不接受位置索引；参数：环境与候选编号；返回：记忆候选。"""
     candidate = next(
         (item for item in env.memory_candidates if item.id == candidate_id),
         None,
@@ -280,7 +281,7 @@ def review_memory_candidate(
     expected_content_hash: str,
     approve: bool,
 ) -> MemoryCandidate:
-    """Approve or reject an unchanged pending candidate after explicit review."""
+    """显式审核未改变的待处理候选；参数：环境、候选编号、内容哈希与决定；返回：工具结果。"""
     candidate = _memory_candidate(env, candidate_id)
     if candidate.status is not MemoryCandidateStatus.PENDING:
         raise ValueError(f"memory candidate is not pending: {candidate.status.value}")
@@ -299,7 +300,7 @@ def promote_memory_candidate(
     expected_content_hash: str,
     target_namespace: str,
 ) -> MemoryEntry:
-    """Promote an approved, unchanged candidate into one explicit namespace."""
+    """将已批准且未改变的候选提升到指定命名空间；参数：环境、编号、哈希和空间；返回：工具结果。"""
     candidate = _memory_candidate(env, candidate_id)
     if candidate.status is not MemoryCandidateStatus.APPROVED:
         raise ValueError(f"memory candidate is not approved: {candidate.status.value}")
@@ -351,7 +352,7 @@ TOOL_REGISTRY: dict[str, ToolHandler] = {
 
 
 def get_tool_definitions() -> list[dict[str, Any]]:
-    """Return fresh OpenAI-compatible definitions for all allowlisted tools."""
+    """生成全部白名单工具的 OpenAI 兼容定义；参数：无；返回：工具定义列表。"""
     if TOOL_ARGUMENT_MODELS.keys() != TOOL_REGISTRY.keys():
         raise RuntimeError("tool argument models and handlers are out of sync")
     if TOOL_ARGUMENT_MODELS.keys() != TOOL_DESCRIPTIONS.keys():
@@ -376,7 +377,7 @@ def execute_tool(
     tool_name: str,
     arguments: dict[str, Any],
 ) -> ToolResult:
-    """Validate and execute one allowlisted simulated tool."""
+    """验证并执行一个白名单模拟工具；参数：环境、工具名和参数字典；返回：工具结果。"""
     argument_model = TOOL_ARGUMENT_MODELS.get(tool_name)
     handler = TOOL_REGISTRY.get(tool_name)
     if argument_model is None or handler is None:

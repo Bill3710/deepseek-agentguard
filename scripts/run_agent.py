@@ -1,4 +1,4 @@
-"""Run the baseline M3 agent against synthetic local tools."""
+"""使用合成本地工具运行 M3 基线智能体。"""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ ENV_FILE = PROJECT_ROOT / ".env"
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Create the command-line parser for offline and DeepSeek runs."""
+    """创建离线与 DeepSeek 运行的命令行解析器；参数：无；返回：解析器。"""
     parser = argparse.ArgumentParser(
         description="Run the baseline AgentGuard agent with synthetic local tools.",
     )
@@ -43,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def build_provider(name: str) -> ModelProvider:
-    """Build either the scripted offline provider or configured DeepSeek provider."""
+    """创建离线或 DeepSeek 提供方；参数：name 提供方名称；返回：模型提供方。"""
     if name == "deepseek":
         return DeepSeekProvider.from_env(ENV_FILE)
 
@@ -73,7 +73,7 @@ def build_provider(name: str) -> ModelProvider:
 
 
 def print_result(result: AgentRunResult) -> None:
-    """Print a compact trace without exposing credentials or real external data."""
+    """输出不含凭据和真实外部数据的简要轨迹；参数：result 运行结果；返回：无。"""
     print(f"Status: {result.status.value}")
     for step in result.steps:
         print(f"Step {step.step_number}: model={step.model_response.model or 'unknown'}")
@@ -93,7 +93,7 @@ def print_result(result: AgentRunResult) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Load the synthetic environment, run the agent, and return an exit code."""
+    """加载模拟环境并运行智能体；参数：argv 可选命令行参数；返回：进程退出码。"""
     args = build_parser().parse_args(argv)
     try:
         provider = build_provider(args.provider)

@@ -1,4 +1,4 @@
-"""Protected agent runner with M5 and M5.1 execution-boundary controls."""
+"""实现 M5 与 M5.1 执行边界控制的受保护智能体执行器。"""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ from agentguard.tools import (
 
 
 class ToolInjectionProtectedRunner(AgentRunner):
-    """Apply M5/M5.1 source, data-flow, approval, and audit controls.
+    """应用 M5/M5.1 来源、数据流、审批及审计控制。
 
     Action-shaped JSON receives a specific reason code, while all untrusted
     records activate a source-based guard for file access and write tools. It
@@ -46,6 +46,7 @@ class ToolInjectionProtectedRunner(AgentRunner):
     memory proposals are isolated for review. Confidential values observed in
     authorized reads cannot enter a sink without an exact flow authorization or
     a separate one-time approval. Every proposal and decision is audit recorded.
+    参数：模型提供方、模拟环境、显式授权集合、策略、审批存储、审计轨迹与运行配置。
     """
 
     def __init__(
@@ -61,6 +62,7 @@ class ToolInjectionProtectedRunner(AgentRunner):
         policy: ToolInjectionPolicy | None = None,
         **kwargs: Any,
     ) -> None:
+        """初始化受保护执行器；参数：运行依赖、授权范围和防御组件；返回：无。"""
         unknown = explicitly_authorized_tools - TOOL_REGISTRY.keys()
         if unknown:
             names = ", ".join(sorted(unknown))
@@ -94,26 +96,26 @@ class ToolInjectionProtectedRunner(AgentRunner):
 
     @property
     def observed_directives(self) -> tuple[UntrustedJsonDirective, ...]:
-        """Expose immutable detection evidence for tests and later auditing."""
+        """读取不可变 JSON 指令证据；参数：无；返回：不可信指令元组。"""
         return self._observed_directives
 
     @property
     def observed_untrusted_sources(self) -> tuple[UntrustedContentSource, ...]:
-        """Expose immutable untrusted-source evidence for tests and auditing."""
+        """读取不可信来源证据；参数：无；返回：不可信来源元组。"""
         return self._observed_untrusted_sources
 
     @property
     def sensitive_sources(self) -> tuple[SensitiveDataSource, ...]:
-        """Expose confidential sources observed during the current run."""
+        """读取当前运行发现的敏感来源；参数：无；返回：敏感来源元组。"""
         return self._sensitive_sources
 
     @property
     def trace_id(self) -> str:
-        """Return the current run's audit correlation identifier."""
+        """读取当前运行的审计关联编号；参数：无；返回：追踪编号。"""
         return self._trace_id
 
     def run(self, task: str) -> AgentRunResult:
-        """Clear per-run evidence before executing a new task."""
+        """清空单次证据后执行新任务；参数：task 用户任务；返回：运行结果。"""
         self._observed_directives = ()
         self._observed_untrusted_sources = ()
         self._sensitive_sources = ()
@@ -132,7 +134,7 @@ class ToolInjectionProtectedRunner(AgentRunner):
         return result
 
     def approve(self, approval_id: str) -> None:
-        """Record explicit user approval without executing the pending call."""
+        """记录显式用户批准但暂不执行；参数：approval_id 审批编号；返回：无。"""
         request = self.approval_store.approve(approval_id)
         self.audit_trail.record(
             trace_id=self._trace_id,
@@ -145,7 +147,7 @@ class ToolInjectionProtectedRunner(AgentRunner):
         )
 
     def reject(self, approval_id: str) -> None:
-        """Reject a pending call without executing it."""
+        """拒绝待处理调用且不执行；参数：approval_id 审批编号；返回：无。"""
         request = self.approval_store.reject(approval_id)
         self.audit_trail.record(
             trace_id=self._trace_id,
@@ -158,7 +160,7 @@ class ToolInjectionProtectedRunner(AgentRunner):
         )
 
     def execute_approved_call(self, approval_id: str) -> ToolResult:
-        """Execute an unchanged approved call once and record the outcome."""
+        """一次性执行未改变的已批准调用并审计；参数：审批编号；返回：工具结果。"""
         request = self.approval_store.get(approval_id)
         tool_call = request.tool_call.model_copy(deep=True)
         self.approval_store.consume(approval_id, tool_call)
@@ -196,7 +198,7 @@ class ToolInjectionProtectedRunner(AgentRunner):
         tool_calls: list[ToolCall],
         messages: list[ChatMessage],
     ) -> list[ToolResult]:
-        """Apply the JSON-injection check before every actual tool execution."""
+        """执行工具前应用注入与数据流策略；参数：调用列表和消息列表；返回：工具结果列表。"""
         results: list[ToolResult] = []
         for tool_call in tool_calls:
             self.audit_trail.record(

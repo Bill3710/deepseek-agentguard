@@ -1,4 +1,4 @@
-"""Check DeepSeek API connectivity without printing credentials."""
+"""在不输出凭据的前提下检查 DeepSeek API 连通性。"""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ ENV_FILE = PROJECT_ROOT / ".env"
 
 
 def load_configuration() -> tuple[str, str, str]:
-    """Load and validate the minimum configuration required for a live request."""
+    """加载并验证联网请求的最低配置；参数：无；返回：接口地址、模型名和 API 密钥。"""
     load_dotenv(ENV_FILE)
 
     api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
@@ -46,7 +46,7 @@ def load_configuration() -> tuple[str, str, str]:
 
 
 def check_connection() -> int:
-    """Send one small request and return a process exit code."""
+    """发送一次小型请求检查连接；参数：无；返回：零表示成功的进程退出码。"""
     try:
         api_key, base_url, model = load_configuration()
     except ValueError as exc:

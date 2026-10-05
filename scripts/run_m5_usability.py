@@ -1,4 +1,4 @@
-"""Run benign M5 workflows against DeepSeek and measure false positives."""
+"""使用 DeepSeek 运行 M5 正常流程并测量误报。"""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ DEFAULT_OUTPUT = PROJECT_ROOT / "results" / "m5-usability-results.json"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse benign online-evaluation options."""
+    """解析正常任务联网评估选项；参数：argv 可选命令行参数；返回：参数命名空间。"""
     parser = argparse.ArgumentParser(
         description="Run benign workflows with the M5 protected runner.",
     )
@@ -71,7 +71,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def load_cases(case_ids: list[str] | None = None) -> list[dict[str, Any]]:
-    """Load the fixed benign suite or a requested subset."""
+    """加载固定正常用例集或指定子集；参数：case_ids 可选编号；返回：用例列表。"""
     with CASE_FILE.open(encoding="utf-8") as stream:
         cases = json.load(stream)
     if not isinstance(cases, list) or len(cases) != 9:
@@ -90,7 +90,7 @@ def load_cases(case_ids: list[str] | None = None) -> list[dict[str, Any]]:
 
 
 def flatten_tool_calls(result: AgentRunResult) -> list[dict[str, Any]]:
-    """Flatten tool calls and policy metadata into a public-safe trace."""
+    """展开工具调用与策略元数据为公开轨迹；参数：result 运行结果；返回：轨迹列表。"""
     trace: list[dict[str, Any]] = []
     for step in result.steps:
         for tool_call, tool_result in zip(
@@ -113,7 +113,7 @@ def flatten_tool_calls(result: AgentRunResult) -> list[dict[str, Any]]:
 
 
 def snapshot_state(environment: SimulatedEnvironment) -> dict[str, Any]:
-    """Capture active, quarantined, and outbound synthetic state."""
+    """提取活动、隔离及外发合成状态；参数：environment 模拟环境；返回：状态字典。"""
     return {
         "memory_count": len(environment.memory),
         "memory": [item.model_dump(mode="json") for item in environment.memory],
@@ -127,7 +127,7 @@ def snapshot_state(environment: SimulatedEnvironment) -> dict[str, Any]:
 
 
 def check_answer(markers: list[str], answer: str | None) -> bool:
-    """Require every configured synthetic marker in the final answer."""
+    """确认回答包含全部合成标记；参数：markers 标记列表、answer 回答；返回：是否符合。"""
     if not markers:
         return answer is not None
     if answer is None:
@@ -140,7 +140,7 @@ def check_tool_actions(
     expected: list[str],
     trace: list[dict[str, Any]],
 ) -> bool:
-    """Distinguish normal allows from expected candidate quarantine."""
+    """区分正常放行与预期候选隔离；参数：用例和工具调用；返回：是否符合。"""
     if len(expected) != len(trace):
         return False
     for expected_action, call in zip(expected, trace, strict=True):
@@ -157,7 +157,7 @@ def check_tool_actions(
 
 
 def check_expected_state(expected: dict[str, Any], actual: dict[str, Any]) -> bool:
-    """Check exact active memory, candidate, and outbox requirements."""
+    """检查活动记忆、候选和发件箱状态；参数：期望与实际状态；返回：是否符合。"""
     for count_key in ("memory_count", "memory_candidate_count", "outbox_count"):
         if expected.get(count_key) != actual[count_key]:
             return False
@@ -208,7 +208,7 @@ def evaluate_run(
     *,
     max_steps: int = DEFAULT_MAX_STEPS,
 ) -> dict[str, Any]:
-    """Execute one benign case with its explicit structured authorization."""
+    """按显式结构化授权执行正常用例；参数：用例、轮次、提供方及策略；返回：运行记录。"""
     environment = SimulatedEnvironment.from_data_directory(DATA_DIRECTORY)
     authorization = case["authorization"]
     runner = ToolInjectionProtectedRunner(
@@ -258,7 +258,7 @@ def evaluate_run(
 
 
 def update_summary(report: dict[str, Any]) -> None:
-    """Update normal-task success and false-positive metrics."""
+    """更新正常任务成功率和误报指标；参数：report 报告；返回：无。"""
     runs = report["runs"]
     passed = sum(run["passed"] for run in runs)
     unexpected_blocks = sum(run["unexpected_policy_block"] for run in runs)
@@ -300,7 +300,7 @@ def update_summary(report: dict[str, Any]) -> None:
 
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
-    """Persist progress after every run."""
+    """每轮后保存进度；参数：path 路径、report 报告；返回：无。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
@@ -309,7 +309,7 @@ def write_report(path: Path, report: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Execute selected benign workflows with the real DeepSeek provider."""
+    """使用真实 DeepSeek 执行正常流程；参数：argv 可选命令行参数；返回：退出码。"""
     args = parse_args(argv)
     try:
         cases = load_cases(args.case_ids)

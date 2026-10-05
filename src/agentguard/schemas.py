@@ -1,4 +1,4 @@
-"""Strict data models shared by AgentGuard tools and model providers."""
+"""AgentGuard 工具、模型提供器和运行器共用的严格数据模型。"""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class StrictModel(BaseModel):
-    """Base model that rejects unknown fields and trims strings."""
+    """严格模型基类；参数由子类字段定义，统一拒绝额外字段并清理字符串。"""
 
     model_config = ConfigDict(
         extra="forbid",
@@ -20,14 +20,14 @@ class StrictModel(BaseModel):
 
 
 class TrustLevel(str, Enum):
-    """Trust assigned to the source of a piece of content."""
+    """内容来源的信任等级枚举；无构造参数。"""
 
     TRUSTED = "trusted"
     UNTRUSTED = "untrusted"
 
 
 class DataClassification(str, Enum):
-    """Confidentiality label attached to simulated data."""
+    """合成数据的保密分类枚举；无构造参数。"""
 
     PUBLIC = "public"
     CONFIDENTIAL = "confidential"
@@ -35,7 +35,7 @@ class DataClassification(str, Enum):
 
 
 class ToolRisk(str, Enum):
-    """Risk level used by later policy-engine milestones."""
+    """策略引擎使用的工具风险等级枚举；无构造参数。"""
 
     LOW = "low"
     MEDIUM = "medium"
@@ -43,7 +43,7 @@ class ToolRisk(str, Enum):
 
 
 class MemoryCandidateStatus(str, Enum):
-    """Review state for memory proposed from untrusted content."""
+    """不可信记忆候选的审核状态枚举；无构造参数。"""
 
     PENDING = "pending"
     APPROVED = "approved"
@@ -52,7 +52,7 @@ class MemoryCandidateStatus(str, Enum):
 
 
 class ApprovalStatus(str, Enum):
-    """Lifecycle state of an exact high-risk tool approval."""
+    """精确高风险工具审批的生命周期状态枚举；无构造参数。"""
 
     PENDING = "pending"
     APPROVED = "approved"
@@ -62,7 +62,7 @@ class ApprovalStatus(str, Enum):
 
 
 class AuditEventType(str, Enum):
-    """Security-relevant events emitted by the protected runner."""
+    """受保护运行器产生的安全事件类型枚举；无构造参数。"""
 
     RUN_STARTED = "run_started"
     TOOL_PROPOSED = "tool_proposed"
@@ -74,7 +74,7 @@ class AuditEventType(str, Enum):
 
 
 class AgentRunStatus(str, Enum):
-    """Terminal state of one baseline agent run."""
+    """一次智能体运行的终止状态枚举；无构造参数。"""
 
     COMPLETED = "completed"
     MAX_STEPS_REACHED = "max_steps_reached"
@@ -82,7 +82,7 @@ class AgentRunStatus(str, Enum):
 
 
 class MessageRole(str, Enum):
-    """Roles supported by the DeepSeek chat-completions interface."""
+    """DeepSeek 聊天接口支持的消息角色枚举；无构造参数。"""
 
     SYSTEM = "system"
     USER = "user"
@@ -91,7 +91,7 @@ class MessageRole(str, Enum):
 
 
 class ToolCall(StrictModel):
-    """Normalized function call proposed by a model provider."""
+    """标准化工具调用；字段参数为调用 ID、工具名和参数字典。"""
 
     id: str = Field(min_length=1, max_length=200)
     name: str = Field(min_length=1, max_length=100)
@@ -99,7 +99,7 @@ class ToolCall(StrictModel):
 
 
 class ChatMessage(StrictModel):
-    """Provider-independent chat message used by the future agent loop."""
+    """提供器无关的聊天消息；字段参数为角色、正文、调用 ID 和工具调用。"""
 
     role: MessageRole
     content: str | None = Field(default=None, min_length=1, max_length=100_000)
@@ -108,7 +108,7 @@ class ChatMessage(StrictModel):
 
     @model_validator(mode="after")
     def validate_role_fields(self) -> ChatMessage:
-        """Keep role-specific message fields internally consistent."""
+        """校验角色专属字段；参数为实例自身，返回校验后的消息实例。"""
         if self.role is MessageRole.ASSISTANT:
             if self.content is None and not self.tool_calls:
                 raise ValueError("assistant messages require content or tool calls")
@@ -133,7 +133,7 @@ class ChatMessage(StrictModel):
 
 
 class ProviderResponse(StrictModel):
-    """Normalized text and tool calls returned by any model provider."""
+    """标准化模型响应；字段参数为正文、工具调用、结束原因和模型名。"""
 
     content: str | None = Field(default=None, min_length=1, max_length=100_000)
     tool_calls: list[ToolCall] = Field(default_factory=list)
@@ -142,14 +142,14 @@ class ProviderResponse(StrictModel):
 
     @model_validator(mode="after")
     def validate_response_content(self) -> ProviderResponse:
-        """Reject provider responses that contain no actionable output."""
+        """拒绝空响应；参数为实例自身，返回包含正文或工具调用的有效实例。"""
         if self.content is None and not self.tool_calls:
             raise ValueError("provider responses require content or tool calls")
         return self
 
 
 class EmailRecord(StrictModel):
-    """Email loaded from the synthetic mailbox."""
+    """合成邮箱记录；字段参数为 ID、发件人、主题、正文和信任等级。"""
 
     model_config = ConfigDict(
         extra="forbid",
@@ -166,26 +166,26 @@ class EmailRecord(StrictModel):
 
 
 class FileRecord(StrictModel):
-    """File stored in the synthetic file collection."""
+    """合成文件记录；字段参数为文件内容和数据分类。"""
 
     content: str = Field(max_length=100_000)
     classification: DataClassification
 
 
 class SearchEmailsArgs(StrictModel):
-    """Arguments accepted by ``search_emails``."""
+    """`search_emails` 参数模型；参数 `query` 为非空搜索词。"""
 
     query: str = Field(min_length=1, max_length=500)
 
 
 class ReadFileArgs(StrictModel):
-    """Arguments accepted by ``read_file``."""
+    """`read_file` 参数模型；参数 `path` 为合成文件相对路径。"""
 
     path: str = Field(min_length=1, max_length=512)
 
 
 class SendEmailArgs(StrictModel):
-    """Arguments accepted by the simulated ``send_email`` tool."""
+    """`send_email` 参数模型；参数为测试收件人、主题和正文。"""
 
     to: str = Field(min_length=3, max_length=320)
     subject: str = Field(min_length=1, max_length=500)
@@ -193,7 +193,7 @@ class SendEmailArgs(StrictModel):
 
 
 class SaveMemoryArgs(StrictModel):
-    """Arguments accepted by ``save_memory``."""
+    """`save_memory` 参数模型；参数为内容、来源和目标命名空间。"""
 
     content: str = Field(min_length=1, max_length=50_000)
     source: str = Field(min_length=1, max_length=500)
@@ -206,7 +206,7 @@ class SaveMemoryArgs(StrictModel):
 
 
 class SimulatedEmail(StrictModel):
-    """Email written to the in-memory outbox."""
+    """本地发件箱邮件；字段参数为 ID、收件人、主题和正文。"""
 
     id: str = Field(min_length=1, max_length=100)
     to: str = Field(min_length=3, max_length=320)
@@ -215,7 +215,7 @@ class SimulatedEmail(StrictModel):
 
 
 class MemoryEntry(StrictModel):
-    """Entry written to the in-memory memory store."""
+    """正式记忆记录；字段参数为 ID、内容、来源和命名空间。"""
 
     id: str = Field(min_length=1, max_length=100)
     content: str = Field(min_length=1, max_length=50_000)
@@ -224,7 +224,7 @@ class MemoryEntry(StrictModel):
 
 
 class MemoryCandidate(StrictModel):
-    """Untrusted memory proposal isolated from active retrieval."""
+    """隔离记忆候选；字段参数包含内容、来源证据、命名空间和审核状态。"""
 
     id: str = Field(min_length=1, max_length=100)
     content: str = Field(min_length=1, max_length=50_000)
@@ -236,7 +236,7 @@ class MemoryCandidate(StrictModel):
 
 
 class ApprovalRequest(StrictModel):
-    """Immutable tool parameters awaiting an explicit one-time approval."""
+    """一次性审批请求；字段参数包含原始调用、参数哈希、来源、时限和状态。"""
 
     id: str = Field(min_length=1, max_length=100)
     tool_call: ToolCall
@@ -249,14 +249,14 @@ class ApprovalRequest(StrictModel):
 
     @model_validator(mode="after")
     def validate_expiry(self) -> ApprovalRequest:
-        """Require a strictly positive approval lifetime."""
+        """校验过期时间晚于创建时间；参数为实例自身，返回有效审批实例。"""
         if self.expires_at <= self.created_at:
             raise ValueError("approval expiry must be after creation")
         return self
 
 
 class AuditEvent(StrictModel):
-    """One redacted event in an append-only security audit trail."""
+    """脱敏审计事件；字段参数包含序号、时间、轨迹、工具、策略和载荷。"""
 
     sequence: int = Field(ge=1)
     timestamp: datetime
@@ -270,7 +270,7 @@ class AuditEvent(StrictModel):
 
 
 class ToolResult(StrictModel):
-    """Normalized result returned by every simulated tool."""
+    """模拟工具统一结果；字段参数为成功标志、工具名、输出、错误和元数据。"""
 
     success: bool
     tool_name: str = Field(min_length=1, max_length=100)
@@ -280,7 +280,7 @@ class ToolResult(StrictModel):
 
     @model_validator(mode="after")
     def validate_result_state(self) -> ToolResult:
-        """Require successful and failed results to have consistent fields."""
+        """校验成功与失败字段不矛盾；参数为实例自身，返回有效结果。"""
         if self.success and self.error is not None:
             raise ValueError("successful tool results cannot contain an error")
         if not self.success and not self.error:
@@ -289,7 +289,7 @@ class ToolResult(StrictModel):
 
 
 class AgentStep(StrictModel):
-    """One provider turn and any tool results produced during that turn."""
+    """一次模型步骤；字段参数为步骤号、模型响应和对应工具结果。"""
 
     step_number: int = Field(ge=1)
     model_response: ProviderResponse
@@ -297,7 +297,7 @@ class AgentStep(StrictModel):
 
 
 class AgentRunResult(StrictModel):
-    """Complete, inspectable outcome of one baseline agent execution."""
+    """一次任务完整结果；字段参数为状态、回答、错误、消息和步骤轨迹。"""
 
     status: AgentRunStatus
     final_answer: str | None = Field(default=None, min_length=1, max_length=100_000)
@@ -307,7 +307,7 @@ class AgentRunResult(StrictModel):
 
     @model_validator(mode="after")
     def validate_terminal_state(self) -> AgentRunResult:
-        """Require final answers and errors to match the terminal status."""
+        """校验终止字段与运行状态一致；参数为实例自身，返回有效运行结果。"""
         if self.status is AgentRunStatus.COMPLETED:
             if self.final_answer is None:
                 raise ValueError("completed runs require a final answer")

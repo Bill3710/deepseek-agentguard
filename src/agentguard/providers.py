@@ -1,4 +1,4 @@
-"""Provider abstraction plus deterministic fake and DeepSeek implementations."""
+"""定义模型提供方抽象，以及确定性的伪提供方和 DeepSeek 实现。"""
 
 from __future__ import annotations
 
@@ -27,56 +27,57 @@ DEFAULT_MODEL = "deepseek-flash"
 
 
 class ProviderError(RuntimeError):
-    """Base exception for safe, provider-independent error handling."""
+    """模型提供方通用异常基类；参数：继承 RuntimeError 的错误消息。"""
 
 
 class ProviderConfigurationError(ProviderError):
-    """Raised when required provider configuration is absent or invalid."""
+    """提供方配置缺失或无效时抛出的异常；参数：错误消息。"""
 
 
 class ProviderResponseError(ProviderError):
-    """Raised when a provider returns a malformed or empty response."""
+    """提供方返回格式错误或空响应时抛出的异常；参数：错误消息。"""
 
 
 class ProviderAuthenticationError(ProviderError):
-    """Raised when DeepSeek rejects the configured API credential."""
+    """DeepSeek 拒绝 API 凭据时抛出的异常；参数：错误消息。"""
 
 
 class ProviderConnectionError(ProviderError):
-    """Raised when the DeepSeek service cannot be reached."""
+    """无法连接 DeepSeek 服务时抛出的异常；参数：错误消息。"""
 
 
 class ProviderRateLimitError(ProviderError):
-    """Raised when DeepSeek rate-limits a request."""
+    """DeepSeek 对请求限流时抛出的异常；参数：错误消息。"""
 
 
 class ProviderAPIError(ProviderError):
-    """Raised for other errors returned by the DeepSeek API."""
+    """DeepSeek API 返回其他错误时抛出的异常；参数：错误消息。"""
 
 
 @runtime_checkable
 class ModelProvider(Protocol):
-    """Common interface consumed by the future AgentRunner."""
+    """智能体执行器使用的模型提供方协议；实现类需提供 complete 方法。"""
 
     def complete(
         self,
         messages: Sequence[ChatMessage],
         tools: Sequence[Mapping[str, Any]] | None = None,
     ) -> ProviderResponse:
-        """Return one normalized model response."""
+        """生成一次标准化模型响应；参数：messages 对话消息、tools 可选工具定义；返回：提供方响应。"""
         ...
 
 
 class FakeProvider:
-    """Return queued responses without network access or API charges."""
+    """无需网络或费用地返回预置响应；参数：responses 按顺序消费的响应序列。"""
 
     def __init__(self, responses: Sequence[ProviderResponse]) -> None:
+        """复制并保存预置响应；参数：responses 响应序列；返回：无。"""
         self._responses = deque(response.model_copy(deep=True) for response in responses)
         self.calls: list[dict[str, Any]] = []
 
     @property
     def remaining_responses(self) -> int:
-        """Return how many scripted responses have not been consumed."""
+        """统计尚未消费的预置响应；参数：无；返回：剩余数量。"""
         return len(self._responses)
 
     def complete(
@@ -84,7 +85,7 @@ class FakeProvider:
         messages: Sequence[ChatMessage],
         tools: Sequence[Mapping[str, Any]] | None = None,
     ) -> ProviderResponse:
-        """Record the request and return the next scripted response."""
+        """记录请求并返回下一条预置响应；参数：消息与可选工具；返回：提供方响应。"""
         self.calls.append(
             {
                 "messages": [message.model_copy(deep=True) for message in messages],
@@ -97,7 +98,7 @@ class FakeProvider:
 
 
 class DeepSeekProvider:
-    """DeepSeek chat-completions adapter using the OpenAI-compatible SDK."""
+    """通过 OpenAI 兼容 SDK 调用 DeepSeek；参数：密钥、地址、模型、超时、重试、令牌上限和可选客户端。"""
 
     def __init__(
         self,
@@ -110,6 +111,7 @@ class DeepSeekProvider:
         max_tokens: int = 1024,
         client: Any | None = None,
     ) -> None:
+        """验证配置并初始化客户端；参数：连接与生成配置；返回：无；异常：无效配置时抛出配置错误。"""
         api_key = api_key.strip()
         base_url = base_url.strip().rstrip("/")
         model = model.strip()
@@ -142,7 +144,7 @@ class DeepSeekProvider:
         env_file: str | Path | None = None,
         **overrides: Any,
     ) -> DeepSeekProvider:
-        """Create a provider from .env/environment values without exposing the key."""
+        """从环境创建提供方且不暴露密钥；参数：env_file 配置文件及覆盖项；返回：DeepSeek 提供方。"""
         load_dotenv(dotenv_path=env_file, override=False)
         api_key = os.getenv("DEEPSEEK_API_KEY", "")
         base_url = os.getenv("DEEPSEEK_BASE_URL", DEFAULT_BASE_URL)
@@ -159,7 +161,7 @@ class DeepSeekProvider:
         messages: Sequence[ChatMessage],
         tools: Sequence[Mapping[str, Any]] | None = None,
     ) -> ProviderResponse:
-        """Call DeepSeek once and normalize its text and function calls."""
+        """调用一次 DeepSeek 并标准化文本和工具调用；参数：消息与可选工具；返回：提供方响应。"""
         if not messages:
             raise ProviderConfigurationError("at least one chat message is required")
 
@@ -193,7 +195,7 @@ class DeepSeekProvider:
 
 
 def _serialize_message(message: ChatMessage) -> dict[str, Any]:
-    """Convert a normalized message into OpenAI-compatible request data."""
+    """将标准消息转为 OpenAI 兼容请求数据；参数：message 聊天消息；返回：序列化字典。"""
     serialized: dict[str, Any] = {"role": message.role.value}
     if message.content is not None:
         serialized["content"] = message.content
@@ -222,7 +224,7 @@ def _serialize_message(message: ChatMessage) -> dict[str, Any]:
 
 
 def _parse_response(response: Any, *, fallback_model: str) -> ProviderResponse:
-    """Normalize one SDK response and reject malformed tool arguments."""
+    """标准化 SDK 响应并拒绝错误工具参数；参数：原始响应和备用模型名；返回：提供方响应。"""
     choices = getattr(response, "choices", None)
     if not choices:
         raise ProviderResponseError("DeepSeek returned no choices")

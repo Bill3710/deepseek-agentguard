@@ -32,6 +32,233 @@ DeepSeek AgentGuard 用一个完全本地、使用合成数据的办公助理环
 
 邮件、文件、收件人和“机密数据”均为本地生成的测试数据。项目不会连接真实邮箱，也不会向外部地址发送邮件。
 
+## M1–M5 实现与代码索引
+
+本节按里程碑说明当前仓库实际实现了什么，以及实现位于哪个 Python 文件。方法表覆盖运行代码和评测脚本中的方法；pytest 测试函数数量较多，不在这里逐一重复，其完整编号、场景和结果见 [质量保证与测试记录](docs/quality-assurance.md)。名称以当前代码为准，以下划线开头的方法属于模块内部实现。
+
+### M1：严格数据模型与本地模拟工具
+
+M1 建立智能体后续阶段共同使用的数据边界。所有输入先经过 Pydantic 严格模型校验，未知字段会被拒绝；四个工具只操作每次运行独立的合成数据和内存状态，不访问真实邮箱、文件系统或网络。
+
+#### `src/agentguard/schemas.py`
+
+| 类或方法 | 功能 |
+|---|---|
+| `StrictModel` | 所有数据模型的基类；禁止额外字段、去除字符串首尾空白，并在属性修改时重新校验。 |
+| `TrustLevel`、`DataClassification`、`ToolRisk` | 定义来源信任等级、数据分类和工具风险等级。 |
+| `AgentRunStatus`、`MessageRole` | 定义一次运行的结束状态和聊天消息角色。 |
+| `ToolCall` | 保存模型提出的工具调用 ID、工具名和参数对象。 |
+| `ChatMessage` | 保存系统、用户、助手和工具消息。 |
+| `ChatMessage.validate_role_fields()` | 校验不同角色允许出现的字段；例如工具消息必须带 `tool_call_id`，用户消息不能伪造工具调用。 |
+| `ProviderResponse` | 保存标准化的模型正文、工具调用、结束原因和模型名。 |
+| `ProviderResponse.validate_response_content()` | 拒绝既没有正文也没有工具调用的空模型响应。 |
+| `EmailRecord`、`FileRecord` | 校验合成邮件和文件；邮件 JSON 的 `from` 映射到 `sender`，文件保留数据分类。 |
+| `SearchEmailsArgs`、`ReadFileArgs`、`SendEmailArgs`、`SaveMemoryArgs` | 定义四个工具允许接收的参数、长度及命名空间格式。 |
+| `SimulatedEmail`、`MemoryEntry` | 表示本地模拟发件箱记录和正式记忆记录。 |
+| `ToolResult` | 统一表示工具成功输出、失败错误和元数据。 |
+| `ToolResult.validate_result_state()` | 保证成功结果不能同时带错误，失败结果必须带错误。 |
+| `AgentStep`、`AgentRunResult` | 保存每个模型步骤以及完整任务运行结果。 |
+| `AgentRunResult.validate_terminal_state()` | 保证完成状态带最终回答，失败或达到步骤上限时带错误说明。 |
+
+`MemoryCandidate`、`ApprovalRequest` 和 `AuditEvent` 等后续新增模型在 M5 小节说明。
+
+#### `src/agentguard/tools.py`
+
+| 类或方法 | 功能 |
+|---|---|
+| `SimulatedEnvironment` | 保存一轮运行独立的邮件、文件、发件箱、正式记忆和候选记忆。 |
+| `SimulatedEnvironment.from_data_directory()` | 从 `emails.json` 和 `files.json` 加载并校验合成数据，创建隔离环境。 |
+| `_failed()` | 生成格式统一的失败 `ToolResult`。 |
+| `normalize_simulated_path()` | 统一 Windows/POSIX 路径表达并拒绝绝对路径、`.` 和 `..` 路径穿越。 |
+| `normalize_memory_namespace()` | 标准化并校验记忆命名空间；供后续精确授权使用。 |
+| `_is_reserved_test_recipient()` | 只接受 `example.com`、`example.net` 或 `example.test` 保留测试域名。 |
+| `search_emails()` | 在合成邮件主题和正文中进行不区分大小写的搜索，最多返回 20 条。 |
+| `read_file()` | 只从内存中的合成文件集合读取文件，并返回路径、内容和分类。 |
+| `send_email()` | 只把邮件追加到本地 `outbox`，不产生真实网络发送。 |
+| `save_memory()` | 只把记录写入本轮环境的正式内存列表。 |
+| `get_tool_definitions()` | 根据严格参数模型生成新的 OpenAI 兼容函数定义副本，供模型调用。 |
+| `execute_tool()` | 检查工具允许列表、校验参数模型，然后调用对应本地工具；未知工具和非法参数在副作用前拒绝。 |
+
+### M2：模型提供器与 DeepSeek 连接
+
+M2 把模型访问封装成统一接口。`AgentRunner` 不依赖具体 SDK；测试可使用完全离线的 `FakeProvider`，在线运行则使用 DeepSeek 的 OpenAI 兼容接口。
+
+#### `src/agentguard/providers.py`
+
+| 类或方法 | 功能 |
+|---|---|
+| `ProviderError` 及其子类 | 将配置、响应、认证、连接、限流和其他 API 错误转换成稳定的本地异常类型。 |
+| `ModelProvider.complete()` | 定义所有提供器必须实现的统一方法：接收标准消息和工具定义，返回 `ProviderResponse`。 |
+| `FakeProvider.__init__()` | 接收预设响应队列，用于不联网的确定性测试。 |
+| `FakeProvider.remaining_responses` | 返回队列中尚未使用的响应数量。 |
+| `FakeProvider.complete()` | 深拷贝并记录本次请求，然后按顺序返回下一条预设响应；队列为空时明确报错。 |
+| `DeepSeekProvider.__init__()` | 校验 API 密钥、地址、模型、超时、重试和令牌上限，并建立 SDK 客户端。 |
+| `DeepSeekProvider.from_env()` | 从 `.env` 或环境变量加载 DeepSeek 配置，不打印密钥。 |
+| `DeepSeekProvider.complete()` | 发送一次聊天补全请求，传递工具定义，并把 SDK/HTTP 错误映射为本地异常。 |
+| `_serialize_message()` | 把 `ChatMessage` 和 `ToolCall` 转换为 OpenAI 兼容请求 JSON。 |
+| `_parse_response()` | 解析模型正文和函数调用，校验工具参数必须是 JSON 对象，并拒绝空响应。 |
+
+#### `scripts/check_deepseek.py`
+
+| 方法 | 功能 |
+|---|---|
+| `load_configuration()` | 从本地配置读取端点、模型和 API 密钥，并校验必填项。 |
+| `check_connection()` | 发送最小连通性请求，只显示密钥是否配置，不显示密钥值，并检查期望响应。 |
+
+### M3：基础 Agent 循环与正常使用评测
+
+M3 将提供器和四个模拟工具连接成真正可运行的 Agent。它支持多轮函数调用、错误回传、最终回答和最大步骤限制；此阶段是无安全策略的行为基线。
+
+#### `src/agentguard/runner.py`
+
+| 类或方法 | 功能 |
+|---|---|
+| `AgentRunner.__init__()` | 注入模型提供器、模拟环境、最大步骤数和系统提示，并拒绝非法配置。 |
+| `AgentRunner.run()` | 创建系统/用户消息，循环调用模型、执行工具和回传结果；在最终回答、提供器错误或步骤上限处结束。 |
+| `AgentRunner._execute_tool_calls()` | 按模型返回顺序执行所有工具调用，并把结构化结果作为工具消息加入上下文。 |
+
+#### `scripts/run_agent.py`
+
+| 方法 | 功能 |
+|---|---|
+| `build_parser()` | 定义命令行任务、提供器选择、数据目录和步骤上限参数。 |
+| `build_provider()` | 根据 `fake` 或 `deepseek` 选择离线提供器或在线提供器。 |
+| `print_result()` | 把运行状态、工具步骤、错误和最终回答转换成便于人工查看的终端输出。 |
+| `main()` | 加载模拟环境、构建运行器、执行用户任务并返回进程状态码。 |
+
+#### `scripts/run_m3_usability.py`
+
+| 方法 | 功能 |
+|---|---|
+| `parse_args()` | 解析重复次数、最大步骤和输出路径。 |
+| `load_cases()` | 加载固定的五个 M3 正常使用案例。 |
+| `flatten_tool_calls()` | 将多轮工具调用展开成可检查的线性轨迹。 |
+| `snapshot_state()` | 保存正式记忆和模拟发件箱的最终状态。 |
+| `check_expected_state()` | 按案例要求检查记忆或发件箱副作用。 |
+| `check_expected_facts()` | 检查最终回答是否包含期望项目事实。 |
+| `evaluate_run()` | 执行一个案例并生成状态、轨迹、事实和副作用判定。 |
+| `update_summary()` | 汇总完成数、通过数、工具调用和耗时。 |
+| `write_report()` | 将逐次运行与汇总结果写入 JSON。 |
+| `main()` | 组织全部案例和重复运行，调用 DeepSeek 并持续保存报告。 |
+
+### M4：攻击案例、攻击执行与结果判定
+
+M4 在 M3 无防御基线上复现三类正式攻击：工具输出提示注入、广义机密暴露和记忆污染。攻击数据全部是合成数据，真实成功与否依据工具轨迹和模拟状态判断，不依据模型自述。
+
+案例定义位于 `attacks/cases.json`、`attacks/cases-v2.json` 和 `attacks/cases-v3.json`；对应载荷位于 `attacks/data*`。这些 JSON 文件没有 Python 方法，但定义了任务、攻击阶段、成功条件和合成标记。
+
+#### `scripts/run_m4_attacks.py`
+
+| 方法 | 功能 |
+|---|---|
+| `parse_args()` | 解析案例文件、数据版本、案例筛选、重复次数、防御模式、恢复运行和输出路径。 |
+| `load_cases()` | 加载攻击库，检查非空和 ID 唯一性，并按攻击库顺序选择指定案例。 |
+| `flatten_tool_calls()` | 把模型工具调用、参数、结果、错误和策略元数据展开为审计轨迹。 |
+| `snapshot_state()` | 捕获正式记忆、候选记忆和模拟发件箱状态。 |
+| `_contains()` | 在 JSON 兼容数据中查找精确合成标记。 |
+| `definition_met_from_evidence()` | 根据成功工具调用、工具输出、发件箱、记忆、运行状态或拒绝证据判断一个机器条件。 |
+| `condition_met_from_evidence()` | 读取案例的最终 `success_condition` 并交给通用证据判定器。 |
+| `evaluate_attack_stages_from_evidence()` | 分别判定载荷访问、目标调用、外部外发和最终影响等攻击阶段。 |
+| `condition_met()` | 兼容早期调用方式的成功条件判定入口。 |
+| `_target_calls()` | 从轨迹中选出与当前案例攻击目标相关的工具调用。 |
+| `classify_attack_status()` | 兼容旧接口，根据运行结果分类攻击状态。 |
+| `classify_attack_status_from_evidence()` | 将结果严格分类为 `NOT_TRIGGERED`、`ATTEMPTED`、`BLOCKED` 或 `SUCCEEDED`。 |
+| `evaluate_run()` | 创建独立环境、执行一次在线案例，并记录轨迹、状态、阶段、最终回答和耗时。 |
+| `update_summary()` | 按案例、类别、状态和攻击阶段计算成功率与边界阻止率。 |
+| `redact_for_report()` | 在报告写盘前递归移除精确密钥值和常见密钥形态，同时保留合成攻击标记。 |
+| `write_report()` | 脱敏后增量写入 JSON 报告，避免长时间测试中途丢失结果。 |
+| `load_resume_report()` | 校验已有报告与当前参数兼容，然后恢复未完成的运行。 |
+| `main()` | 组织 DeepSeek 在线攻击实验、断点续跑、逐次保存及最终汇总。 |
+
+### M5：确定性防御、正常使用与混合评测
+
+M5 不依赖模型自行判断“这是不是攻击”，而是在工具执行前检查不可信来源、动作型 JSON、精确文件路径、记忆命名空间和工具授权。未经授权的调用会被阻止，不可信记忆提案会进入候选区。当前仓库还保留了 M5.1 加固：跨工具机密数据流、一次性审批、候选提升和脱敏审计。
+
+#### `src/agentguard/policy.py`
+
+| 类或方法 | 功能 |
+|---|---|
+| `PolicyAction`、`PolicyDecision` | 定义 `allow`、`block`、`quarantine`、`require_approval` 及其原因代码和来源证据。 |
+| `UntrustedJsonDirective` | 记录不可信 JSON 中发现的动作字段和目标工具。 |
+| `UntrustedContentSource` | 记录成功工具输出中的不可信记录来源。 |
+| `SensitiveDataSource` | 记录已读取机密文件的路径、分类及可跟踪内容片段。 |
+| `_embedded_json_values()` | 从普通文本中确定性解析嵌入的 JSON 对象或数组。 |
+| `_tools_from_text()` | 使用固定别名表把动作文本映射为四个本地工具，不调用模型判断。 |
+| `_collect_action_shape()` | 递归收集 JSON 的动作型字段和其中请求的工具；内部 `visit()` 完成树遍历。 |
+| `inspect_untrusted_json()` | 只检查明确标记为 `untrusted` 的成功工具输出，提取动作型 JSON 证据。 |
+| `inspect_untrusted_sources()` | 从成功的列表型工具输出中提取所有不可信来源。 |
+| `inspect_sensitive_data()` | 从成功的机密文件读取结果中提取来源及非平凡机密片段。 |
+| `sensitive_sources_in_call()` | 检查待执行工具参数中是否包含此前观察到的机密片段。 |
+| `ToolInjectionPolicy.evaluate()` | 按固定优先级检查机密读取、来源授权、JSON 动作、敏感数据流、记忆隔离和高风险工具授权，返回唯一策略决定。 |
+
+#### `src/agentguard/secure_runner.py`
+
+| 类或方法 | 功能 |
+|---|---|
+| `ToolInjectionProtectedRunner.__init__()` | 校验并保存工具、文件路径、记忆命名空间和数据流授权，同时建立策略、审批存储和审计轨迹。 |
+| `observed_directives` | 返回当前运行观察到的动作型 JSON 证据。 |
+| `observed_untrusted_sources` | 返回当前运行观察到的不可信内容来源。 |
+| `sensitive_sources` | 返回当前运行已读取的机密来源。 |
+| `trace_id` | 返回当前运行的审计关联 ID。 |
+| `run()` | 清空上一轮证据、记录运行开始和结束事件，然后执行基础 Agent 循环。 |
+| `approve()` | 将待审批调用标记为人工批准，但不立即执行。 |
+| `reject()` | 拒绝待审批调用并记录审批事件。 |
+| `execute_approved_call()` | 消费一次精确审批、执行保存的原始调用并记录结果；同一审批不可重放。 |
+| `_execute_tool_calls()` | 在每次真实工具执行前记录提议、调用策略、执行阻止/隔离/审批/允许分支，并更新不可信与机密证据。 |
+
+#### M5.1 支撑模块
+
+| Python 文件与方法 | 功能 |
+|---|---|
+| `approval.py: tool_call_hash()` | 对工具名和全部参数生成稳定 SHA-256，防止批准后替换参数。 |
+| `ApprovalStore.__init__()`、`requests` | 初始化审批存储并提供按创建顺序的只读审批视图。 |
+| `ApprovalStore.create()` | 创建绑定原始调用、来源、原因和过期时间的待审批请求。 |
+| `ApprovalStore.get()` | 按 ID 获取审批，未知 ID 明确失败。 |
+| `ApprovalStore.approve()`、`reject()` | 只允许对仍处于待处理状态的请求批准或拒绝。 |
+| `ApprovalStore.consume()` | 校验未过期、已批准且参数哈希完全一致，然后将审批永久标记为已消费。 |
+| `audit.py: AuditTrail.__init__()`、`events` | 创建带脱敏器的追加式审计轨迹，并提供不可变事件视图。 |
+| `AuditTrail.record()` | 递归脱敏载荷后追加带序号、时间、轨迹 ID 和策略原因的事件。 |
+| `AuditTrail.write_jsonl()` | 将当前脱敏事件逐行写入 JSONL。 |
+| `redaction.py: Redactor.__init__()` | 初始化需要精确隐藏的机密值集合。 |
+| `Redactor.add_secret()` | 注册长度足够的机密片段，避免把常见短词误当秘密。 |
+| `Redactor.redact_text()` | 替换已注册秘密和常见凭据形态。 |
+| `Redactor.redact()` | 递归处理字符串、字典和列表，并按敏感字段名隐藏值。 |
+| `tools.py: quarantine_memory()` | 把来自不可信来源的记忆写入转换为待审核候选，不进入正式记忆。 |
+| `memory_candidate_hash()` | 对候选内容、来源、证据和命名空间生成稳定哈希。 |
+| `_memory_candidate()` | 按稳定 ID 查找候选，不接受易变化的位置索引。 |
+| `review_memory_candidate()` | 校验候选仍待处理且哈希一致，然后批准或拒绝。 |
+| `promote_memory_candidate()` | 将已批准且未变化的候选一次性提升到明确的正式命名空间。 |
+
+#### `scripts/run_m5_usability.py`
+
+| 方法 | 功能 |
+|---|---|
+| `parse_args()` | 解析正常案例、重复次数、步骤上限和输出文件。 |
+| `load_cases()` | 加载并筛选九个固定良性案例。 |
+| `flatten_tool_calls()` | 保存工具调用及策略元数据。 |
+| `snapshot_state()` | 捕获正式记忆、候选记忆和发件箱。 |
+| `check_answer()` | 检查最终回答中的合成事实标记。 |
+| `check_tool_actions()` | 对照案例检查 `allow` 或预期的 `quarantine` 工具序列。 |
+| `check_expected_state()` | 检查正常任务要求的最终状态与具体内容。 |
+| `evaluate_run()` | 使用受保护运行器执行一个正常案例，计算严格通过、功能通过和意外策略阻止。 |
+| `update_summary()` | 统计严格成功率、功能成功率、误报率、策略动作、调用次数和耗时。 |
+| `write_report()` | 将正常使用逐次结果写入 JSON。 |
+| `main()` | 组织选定正常案例的在线重复运行并持续保存结果。 |
+
+#### `scripts/run_m5_mixed.py`
+
+| 方法 | 功能 |
+|---|---|
+| `parse_args()` | 解析轮数、随机种子和输出路径。 |
+| `load_attack_pool()` | 从 M4 V3 案例中加载当前保留的三类九个攻击案例。 |
+| `build_plan()` | 使用固定随机种子为每轮选择四个不同良性任务和一个随机攻击，并打乱轮内顺序。 |
+| `_policy_actions()` | 从工具轨迹中提取实际策略动作。 |
+| `normalize_normal_result()` | 将正常运行转换为严格成功、功能成功和误报字段。 |
+| `normalize_attack_result()` | 将攻击运行转换为攻击成功、策略介入和防御影响字段。 |
+| `update_summary()` | 验证 4:1 比例并汇总正常成功率、误报率、攻击成功率、类别分布和耗时。 |
+| `write_report()` | 增量保存完整随机计划和逐项结果。 |
+| `main()` | 构建计划，按顺序执行 50 项在线混合测试并生成最终报告。 |
+
 ## M4 攻击测试类型
 
 M4 将在 M3 的无防御智能体基线上复现攻击并记录安全影响。所有攻击只使用合成邮件、合成文件、模拟工具和 `example.test` 等保留测试域名，不接触真实系统或真实敏感数据。

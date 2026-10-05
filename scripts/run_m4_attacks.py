@@ -1,4 +1,4 @@
-"""Run the M4 attack corpus against DeepSeek and save structured results."""
+"""使用 DeepSeek 运行 M4 攻击语料并保存结构化结果。"""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ PROTECTION_MODES = (PROTECTION_NONE, PROTECTION_UNTRUSTED_TOOL_OUTPUT)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse online M4 evaluation options."""
+    """解析 M4 联网评估选项；参数：argv 可选命令行参数；返回：参数命名空间。"""
     parser = argparse.ArgumentParser(
         description="Run the synthetic M4 attack corpus with DeepSeek.",
     )
@@ -114,7 +114,7 @@ def load_cases(
     path: Path = CASE_FILE,
     case_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Load all cases or a requested subset while preserving corpus order."""
+    """按语料顺序加载全部或指定用例；参数：用例文件与可选编号；返回：用例列表。"""
     with path.open(encoding="utf-8") as stream:
         cases = json.load(stream)
     if not isinstance(cases, list) or not cases:
@@ -135,7 +135,7 @@ def load_cases(
 
 
 def flatten_tool_calls(result: AgentRunResult) -> list[dict[str, Any]]:
-    """Flatten model calls and tool results into an inspectable trace."""
+    """将模型调用和工具结果展开为可检查轨迹；参数：result 运行结果；返回：轨迹列表。"""
     trace: list[dict[str, Any]] = []
     for step in result.steps:
         for tool_call, tool_result in zip(
@@ -159,7 +159,7 @@ def flatten_tool_calls(result: AgentRunResult) -> list[dict[str, Any]]:
 
 
 def snapshot_state(environment: SimulatedEnvironment) -> dict[str, Any]:
-    """Capture the synthetic state used to judge attack effects."""
+    """提取判断攻击效果所需的合成状态；参数：environment 模拟环境；返回：状态字典。"""
     return {
         "memory_count": len(environment.memory),
         "memory": [item.model_dump(mode="json") for item in environment.memory],
@@ -173,7 +173,7 @@ def snapshot_state(environment: SimulatedEnvironment) -> dict[str, Any]:
 
 
 def _contains(value: Any, marker: str) -> bool:
-    """Search a JSON-compatible value for an exact synthetic marker."""
+    """在 JSON 兼容值中查找精确标记；参数：value 值、marker 标记；返回：是否存在。"""
     return marker in json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
@@ -183,7 +183,7 @@ def definition_met_from_evidence(
     state: dict[str, Any],
     run_status: str,
 ) -> bool:
-    """Evaluate one machine-readable condition from trace and state evidence."""
+    """依据轨迹与状态评估一个机器条件；参数：条件、轨迹、状态及回答；返回：是否满足。"""
     kind = condition["kind"]
 
     if kind == "successful_tool_call":
@@ -253,7 +253,7 @@ def condition_met_from_evidence(
     state: dict[str, Any],
     run_status: str,
 ) -> bool:
-    """Evaluate one case's final success condition."""
+    """评估用例最终成功条件；参数：用例、轨迹、状态与回答；返回：是否成功。"""
     return definition_met_from_evidence(
         case["success_condition"],
         trace,
@@ -268,7 +268,7 @@ def evaluate_attack_stages_from_evidence(
     state: dict[str, Any],
     run_status: str,
 ) -> list[dict[str, Any]]:
-    """Evaluate optional staged attack evidence without weakening final success."""
+    """评估可选分阶段证据且不放宽最终标准；参数：用例及运行证据；返回：阶段结果列表。"""
     results: list[dict[str, Any]] = []
     for stage in case.get("attack_stages", []):
         results.append(
@@ -291,7 +291,7 @@ def condition_met(
     result: AgentRunResult,
     environment: SimulatedEnvironment,
 ) -> bool:
-    """Evaluate one live run's machine-readable success or block condition."""
+    """评估联网运行的成功或拦截条件；参数：用例与运行结果；返回：是否满足。"""
     return condition_met_from_evidence(
         case,
         flatten_tool_calls(result),
@@ -301,7 +301,7 @@ def condition_met(
 
 
 def _target_calls(case: dict[str, Any], trace: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return calls that are relevant to the case's expected effect."""
+    """筛选与期望效果有关的调用；参数：case 用例、trace 轨迹；返回：相关调用。"""
     condition = case["success_condition"]
     kind = condition["kind"]
     target_tool = condition.get("tool")
@@ -319,7 +319,7 @@ def classify_attack_status(
     result: AgentRunResult,
     environment: SimulatedEnvironment,
 ) -> str:
-    """Classify the observed outcome independently from pytest pass/fail."""
+    """独立于测试通过与否分类攻击结果；参数：用例、运行结果和轨迹；返回：状态文本。"""
     trace = flatten_tool_calls(result)
     matched = condition_met_from_evidence(
         case,
@@ -335,7 +335,7 @@ def classify_attack_status_from_evidence(
     trace: list[dict[str, Any]],
     matched: bool,
 ) -> str:
-    """Classify an outcome using already evaluated serializable evidence."""
+    """使用已评估证据分类结果；参数：用例及序列化证据；返回：状态文本。"""
     if matched:
         return BLOCKED if case["expected_outcome"] == "blocked" else SUCCEEDED
 
@@ -362,7 +362,7 @@ def evaluate_run(
     data_directory: Path = ATTACK_DATA_DIRECTORY,
     protection: str = PROTECTION_NONE,
 ) -> dict[str, Any]:
-    """Execute one case in a fresh synthetic environment and judge it."""
+    """在全新环境执行并判断一个攻击用例；参数：用例、轮次、提供方及防御配置；返回：记录。"""
     environment = SimulatedEnvironment.from_data_directory(data_directory)
     runner_class: type[AgentRunner]
     if protection == PROTECTION_NONE:
@@ -416,7 +416,7 @@ def evaluate_run(
 
 
 def update_summary(report: dict[str, Any]) -> None:
-    """Update aggregate attack and boundary metrics after every run."""
+    """更新攻击与边界汇总指标；参数：report 报告字典；返回：无。"""
     runs = report["runs"]
     statuses = Counter(run["attack_status"] for run in runs)
     attack_runs = [
@@ -524,7 +524,7 @@ def update_summary(report: dict[str, Any]) -> None:
 
 
 def redact_for_report(value: Any, secrets: tuple[str, ...] = ()) -> Any:
-    """Recursively redact credentials while retaining synthetic attack markers."""
+    """递归脱敏凭据并保留攻击标记；参数：value 值、secrets 秘密序列；返回：脱敏副本。"""
     if isinstance(value, dict):
         return {key: redact_for_report(item, secrets) for key, item in value.items()}
     if isinstance(value, list):
@@ -550,7 +550,7 @@ def write_report(
     *,
     secrets: tuple[str, ...] = (),
 ) -> None:
-    """Persist a redacted report after every completed online run."""
+    """每轮后保存脱敏报告；参数：path 路径、report 报告、secrets 秘密；返回：无。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     safe_report = redact_for_report(report, secrets)
     path.write_text(
@@ -567,7 +567,7 @@ def load_resume_report(
     max_steps: int,
     protection: str = PROTECTION_NONE,
 ) -> dict[str, Any]:
-    """Load an interrupted report only when its run plan still matches."""
+    """仅在运行计划匹配时加载中断报告；参数：路径、计划及配置；返回：报告或空值。"""
     with path.open(encoding="utf-8") as stream:
         report = json.load(stream)
     expected_ids = [case["id"] for case in cases]
@@ -616,7 +616,7 @@ def load_resume_report(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Execute selected M4 cases repeatedly with the real DeepSeek provider."""
+    """使用真实 DeepSeek 重复执行 M4 用例；参数：argv 可选命令行参数；返回：退出码。"""
     args = parse_args(argv)
     case_file = args.case_file.resolve()
     data_directory = args.data_directory.resolve()
