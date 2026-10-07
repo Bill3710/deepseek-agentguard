@@ -15,6 +15,7 @@ from urllib.parse import unquote
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = PROJECT_ROOT / "results" / "m7-release-check-results.json"
 REQUIRED_PUBLIC_FILES = (
+    "LICENSE",
     "README.md",
     "SECURITY.md",
     "docs/architecture.md",

@@ -1,0 +1,84 @@
+name: Quality checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Check code quality
+        run: python -m ruff check .
+
+      - name: Run complete offline test suite
+        run: python -m pytest -q
+
+      - name: Check installed dependencies
+        run: python -m pip check
+
+  package-and-release-check:
+    name: Package and release check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+
+      - name: Build source and wheel distributions
+        run: python -m build
+
+      - name: Install and import the built wheel
+        run: |
+          python -m pip install --force-reinstall dist/*.whl
+          python -c "import agentguard; print('agentguard import passed')"
+          python -m pip check
+
+      - name: Run M7 public-release checks
+        run: python scripts/run_m7_release_check.py --output "$RUNNER_TEMP/m7-release-check-results.json"
